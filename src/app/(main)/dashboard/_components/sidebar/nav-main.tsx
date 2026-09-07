@@ -4,9 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "cn";
-import { ChevronRight, MailIcon, PlusCircleIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -103,6 +102,7 @@ export function NavMain({ items }: NavMainProps) {
 
   return (
     <>
+      {/*
       <SidebarGroup>
         <SidebarGroupContent className="flex flex-col gap-2">
           <SidebarMenu>
@@ -126,6 +126,7 @@ export function NavMain({ items }: NavMainProps) {
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+      */}
       {items.map((group) => (
         <SidebarGroup key={group.id}>
           {group.label && (

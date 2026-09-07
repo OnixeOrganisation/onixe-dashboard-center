@@ -1,8 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
-import { Command } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import {
@@ -21,7 +21,7 @@ import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
 
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
-import { SupportCard } from "./support-card";
+// import { SupportCard } from "./support-card";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { sidebarVariant, sidebarCollapsible, isSynced } = usePreferencesStore(
@@ -40,10 +40,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link prefetch={false} href="/dashboard/default">
-                <Command />
-                <span className="font-semibold text-base">{APP_CONFIG.name}</span>
+            <SidebarMenuButton size="lg" asChild>
+              <Link prefetch={false} href="/dashboard/academy" className="flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#27272A] bg-black p-1">
+                  <Image
+                    src="/images/logo-court.png"
+                    alt="Onixe Logo"
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                  />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="text-base font-bold tracking-wide text-foreground">{APP_CONFIG.name}</span>
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Centre de Formation
+                  </span>
+                </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -53,7 +66,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={sidebarItems} />
       </SidebarContent>
       <SidebarFooter>
-        <SupportCard />
+        {/* <SupportCard /> */}
         <NavUser user={rootUser} />
       </SidebarFooter>
     </Sidebar>

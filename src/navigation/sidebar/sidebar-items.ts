@@ -3,12 +3,9 @@ import {
   Calendar,
   ChartBar,
   CheckSquare,
-  Fingerprint,
   FolderOpen,
-  Forklift,
   Gauge,
   GraduationCap,
-  HeartPulse,
   Kanban,
   LayoutDashboard,
   ListTodo,
@@ -18,8 +15,6 @@ import {
   MessageSquare,
   ReceiptText,
   Server,
-  ShoppingBag,
-  SquareArrowUpRight,
   UserRound,
   Users,
 } from "lucide-react";
@@ -97,24 +92,28 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/productivity",
         icon: ListTodo,
       },
+      /*
       {
         id: "ecommerce",
         title: "E-commerce",
         url: "/dashboard/ecommerce",
         icon: ShoppingBag,
       },
+      */
       {
         id: "academy",
         title: "Academy",
         url: "/dashboard/academy",
         icon: GraduationCap,
       },
+      /*
       {
         id: "logistics",
         title: "Logistics",
         url: "/dashboard/logistics",
         icon: Forklift,
       },
+      */
       {
         id: "infrastructure",
         title: "Infrastructure",
@@ -127,12 +126,14 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/file-manager",
         icon: FolderOpen,
       },
+      /*
       {
         id: "patient-monitoring",
         title: "Patient Monitoring",
         url: "/dashboard/patient-monitoring",
         icon: HeartPulse,
       },
+      */
     ],
   },
   {
@@ -193,6 +194,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/roles",
         icon: Lock,
       },
+      /*
       {
         id: "authentication",
         title: "Authentication",
@@ -204,8 +206,10 @@ export const sidebarItems: NavGroup[] = [
           { id: "auth-register-v2", title: "Register v2", url: "/auth/v2/register", newTab: true },
         ],
       },
+      */
     ],
   },
+  /*
   {
     id: 3,
     label: "Legacy",
@@ -236,4 +240,5 @@ export const sidebarItems: NavGroup[] = [
       },
     ],
   },
+  */
 ];
