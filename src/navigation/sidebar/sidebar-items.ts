@@ -1,6 +1,7 @@
 import {
   Award,
   BookOpen,
+  Briefcase,
   Building,
   Building2,
   Calendar,
@@ -11,6 +12,7 @@ import {
   FolderOpen,
   Gauge,
   GraduationCap,
+  HeartHandshake,
   Layers,
   Lock,
   type LucideIcon,
@@ -18,6 +20,7 @@ import {
   MessageSquare,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   UserCheck,
 } from "lucide-react";
 
@@ -62,7 +65,7 @@ export interface NavGroup {
 export const sidebarItems: NavGroup[] = [
   {
     id: 1,
-    label: "Overview",
+    label: "Institutional Intelligence",
     items: [
       {
         id: "academy",
@@ -75,6 +78,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Pedagogical Analytics",
         url: "/dashboard/analytics",
         icon: Gauge,
+      },
+      {
+        id: "ai-tools",
+        title: "AI Pedagogical Engine",
+        url: "/dashboard/ai-tools",
+        icon: Sparkles,
       },
     ],
   },
@@ -142,6 +151,24 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/remediation",
         icon: RefreshCw,
       },
+      {
+        id: "internships",
+        title: "Internships & Capstones",
+        url: "/dashboard/internships",
+        icon: Briefcase,
+      },
+      {
+        id: "certifications",
+        title: "Diplomas & Credentials",
+        url: "/dashboard/certifications",
+        icon: Award,
+      },
+      {
+        id: "parents",
+        title: "Parent & Mentor Portal",
+        url: "/dashboard/parents",
+        icon: HeartHandshake,
+      },
     ],
   },
   {
@@ -150,7 +177,7 @@ export const sidebarItems: NavGroup[] = [
     items: [
       {
         id: "finance",
-        title: "Tuition & Billing",
+        title: "Tuition & Invoicing",
         url: "/dashboard/finance",
         icon: DollarSign,
       },

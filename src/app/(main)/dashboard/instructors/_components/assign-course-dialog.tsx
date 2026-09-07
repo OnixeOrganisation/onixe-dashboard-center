@@ -43,8 +43,8 @@ export function AssignCourseDialog({ instructor, open, onOpenChange, onUpdateCou
 
   React.useEffect(() => {
     if (instructor) {
-      setCourses(instructor.assignedCourses || []);
-      setCohorts(instructor.assignedCohorts || []);
+      setCourses(instructor.assignedCourses);
+      setCohorts(instructor.assignedCohorts);
     }
   }, [instructor]);
 

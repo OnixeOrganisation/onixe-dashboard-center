@@ -52,8 +52,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="text-base font-bold tracking-wide text-foreground">{APP_CONFIG.name}</span>
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <span className="font-bold text-base text-foreground tracking-wide">{APP_CONFIG.name}</span>
+                  <span className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
                     Centre de Formation
                   </span>
                 </div>

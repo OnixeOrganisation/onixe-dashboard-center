@@ -35,7 +35,7 @@ export function CourseModulesDialog({ course, open, onOpenChange, onUpdateModule
 
   React.useEffect(() => {
     if (course) {
-      setModules(course.modules || []);
+      setModules(course.modules);
     }
   }, [course]);
 

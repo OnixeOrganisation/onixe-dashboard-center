@@ -78,7 +78,7 @@ export function CohortsList() {
       {/* Top Header & Actions */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="font-bold text-2xl tracking-tight text-foreground md:text-3xl">Cohorts & Promotions</h1>
+          <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl">Cohorts & Promotions</h1>
           <p className="text-muted-foreground text-sm">
             Manage academic promotions, class sizes, room assignments and cohort schedules.
           </p>
@@ -154,7 +154,7 @@ export function CohortsList() {
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+            <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
             <Input
               placeholder="Search cohort, code..."
               value={search}
@@ -204,7 +204,7 @@ export function CohortsList() {
 
               <CardContent className="space-y-4 pb-4">
                 {/* Lead Instructor */}
-                <div className="flex items-center gap-3 rounded-lg border p-2.5 bg-muted/20">
+                <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-2.5">
                   <Avatar className="size-9">
                     <AvatarFallback className="text-xs">
                       {cohort.leadInstructor.name
@@ -214,7 +214,7 @@ export function CohortsList() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">
-                    <span className="font-medium text-xs text-foreground leading-tight">
+                    <span className="font-medium text-foreground text-xs leading-tight">
                       {cohort.leadInstructor.name}
                     </span>
                     <span className="text-[11px] text-muted-foreground">Lead Instructor</span>
@@ -233,24 +233,24 @@ export function CohortsList() {
                 </div>
 
                 {/* Location & Timetable */}
-                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground border-t pt-3">
+                <div className="grid grid-cols-2 gap-2 border-t pt-3 text-muted-foreground text-xs">
                   <div className="flex items-center gap-1.5">
                     <MapPin className="size-3.5 shrink-0 text-foreground" />
                     <span className="truncate">{cohort.primaryRoom}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 justify-end font-semibold text-foreground">
+                  <div className="flex items-center justify-end gap-1.5 font-semibold text-foreground">
                     <span>{cohort.attendanceRate}% Attendance</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
                   <Clock className="size-3.5 shrink-0" />
                   <span className="truncate">{cohort.scheduleSummary}</span>
                 </div>
               </CardContent>
 
               {/* Actions Footer */}
-              <div className="flex items-center justify-between border-t p-4 pt-3 bg-muted/10">
+              <div className="flex items-center justify-between border-t bg-muted/10 p-4 pt-3">
                 <EnrollStudentsDialog
                   cohort={cohort}
                   onEnrolled={(count) => handleStudentsEnrolled(cohort.id, count)}

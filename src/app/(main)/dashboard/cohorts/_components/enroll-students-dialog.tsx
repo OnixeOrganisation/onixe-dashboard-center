@@ -127,7 +127,7 @@ export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialo
                 <label
                   key={student.id}
                   htmlFor={`student-select-${student.id}`}
-                  className="flex items-center justify-between gap-3 rounded-md p-2.5 transition-colors hover:bg-muted/50 cursor-pointer"
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-md p-2.5 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-center gap-3">
                     <Checkbox
@@ -139,7 +139,7 @@ export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialo
                       <AvatarFallback className="text-xs">{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <span className="font-medium text-sm leading-tight text-foreground">{student.name}</span>
+                      <span className="font-medium text-foreground text-sm leading-tight">{student.name}</span>
                       <span className="text-muted-foreground text-xs">{student.email}</span>
                     </div>
                   </div>
@@ -151,7 +151,7 @@ export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialo
             })}
           </div>
 
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
             <span>
               Capacity: {cohort.enrolledStudents} / {cohort.capacity} learners
             </span>
