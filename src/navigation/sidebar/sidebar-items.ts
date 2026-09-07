@@ -5,6 +5,7 @@ import {
   Gauge,
   GraduationCap,
   Kanban,
+  Layers,
   ListTodo,
   Lock,
   type LucideIcon,
@@ -175,8 +176,14 @@ export const sidebarItems: NavGroup[] = [
         icon: UserRound,
       },
       {
+        id: "cohorts",
+        title: "Cohorts & Classes",
+        url: "/dashboard/cohorts",
+        icon: Layers,
+      },
+      {
         id: "users",
-        title: "Users",
+        title: "Learners & Faculty",
         url: "/dashboard/users",
         icon: Users,
       },

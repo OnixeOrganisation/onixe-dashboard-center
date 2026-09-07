@@ -8,7 +8,7 @@ import {
   type SortingState,
   useTable,
 } from "@tanstack/react-table";
-import { Cog, Download, Grid, Plus, Rows3, Search, SlidersHorizontal } from "lucide-react";
+import { Download, Grid, Plus, Rows3, Search, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,9 +72,9 @@ export function Users({ users }: { users: UserRow[] }) {
   return (
     <Card>
       <CardHeader className="border-b has-data-[slot=card-action]:grid-cols-1 md:has-data-[slot=card-action]:grid-cols-[1fr_auto]">
-        <CardTitle className="text-xl leading-none">Users</CardTitle>
-        <CardDescription className="max-w-sm leading-snug">
-          Manage your organization members and their access.
+        <CardTitle className="text-xl leading-none">Learners & Faculty Directory</CardTitle>
+        <CardDescription className="max-w-md leading-snug">
+          Manage enrolled students, instructors, pedagogical coordinators and academic permissions.
         </CardDescription>
         <CardAction className="col-start-1 row-start-auto flex w-full flex-wrap justify-start gap-2 justify-self-stretch md:col-start-2 md:row-span-2 md:row-start-1 md:w-auto md:flex-nowrap md:justify-end md:justify-self-end">
           <InputGroup className="h-7 w-full md:w-64">
@@ -83,7 +83,7 @@ export function Users({ users }: { users: UserRow[] }) {
             </InputGroupAddon>
             <InputGroupInput
               className="h-7"
-              placeholder="Search users..."
+              placeholder="Search by name, email, cohort..."
               value={searchQuery}
               onChange={(event) => {
                 table.getColumn("search")?.setFilterValue(event.target.value || undefined);
@@ -95,16 +95,13 @@ export function Users({ users }: { users: UserRow[] }) {
             </InputGroupAddon>
           </InputGroup>
           <Button variant="outline" size="sm">
-            <SlidersHorizontal /> Hide
+            <SlidersHorizontal /> Filters
           </Button>
           <Button variant="outline" size="sm">
-            <Cog /> Customize
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download /> Export
+            <Download /> Export CSV
           </Button>
           <Button size="sm">
-            <Plus /> Add User
+            <Plus /> Register Member
           </Button>
         </CardAction>
       </CardHeader>
@@ -129,7 +126,7 @@ export function Users({ users }: { users: UserRow[] }) {
 
             <Select value={teamFilter} onValueChange={(value) => setColumnSelectFilter("team", value)}>
               <SelectTrigger size="sm">
-                <span className="text-muted-foreground">Team:</span>
+                <span className="text-muted-foreground">Department:</span>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" align="start">
