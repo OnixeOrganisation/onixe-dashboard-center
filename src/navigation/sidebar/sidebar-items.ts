@@ -12,8 +12,8 @@ import {
   Mail,
   MessageSquare,
   ReceiptText,
-  UserRound,
-  Users,
+  ShieldCheck,
+  UserCheck,
 } from "lucide-react";
 
 export type NavBadge = "new" | "soon";
@@ -170,26 +170,32 @@ export const sidebarItems: NavGroup[] = [
         icon: ReceiptText,
       },
       {
-        id: "profile",
-        title: "Profile",
-        url: "/dashboard/profile",
-        icon: UserRound,
-      },
-      {
         id: "cohorts",
         title: "Cohorts & Classes",
         url: "/dashboard/cohorts",
         icon: Layers,
       },
       {
-        id: "users",
-        title: "Learners & Faculty",
-        url: "/dashboard/users",
-        icon: Users,
+        id: "students",
+        title: "Students / Learners",
+        url: "/dashboard/students",
+        icon: GraduationCap,
+      },
+      {
+        id: "instructors",
+        title: "Instructors / Faculty",
+        url: "/dashboard/instructors",
+        icon: UserCheck,
+      },
+      {
+        id: "staff",
+        title: "Center Staff & Admin",
+        url: "/dashboard/staff",
+        icon: ShieldCheck,
       },
       {
         id: "roles",
-        title: "Roles",
+        title: "Roles & Permissions",
         url: "/dashboard/roles",
         icon: Lock,
       },
