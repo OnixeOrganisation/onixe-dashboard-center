@@ -13,9 +13,9 @@ export default function Page() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl tracking-tight">Academy Dashboard</h1>
+          <h1 className="text-3xl tracking-tight">Academy Management</h1>
           <p className="text-muted-foreground text-sm">
-            Good morning, Teacher. Here's a quick overview of today's activity.
+            Welcome back. Here is the operational and pedagogical overview of your training center today.
           </p>
         </div>
 
@@ -26,11 +26,11 @@ export default function Page() {
           </Button>
           <Button size="sm" variant="outline">
             <BookOpenCheck />
-            Gradebook
+            Curriculum & Programs
           </Button>
           <Button size="sm" variant="outline">
             <Plus />
-            Add Assignment
+            New Training Session
           </Button>
         </div>
       </div>

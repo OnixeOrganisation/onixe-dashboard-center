@@ -1,20 +1,16 @@
 import {
-  Banknote,
   Calendar,
-  ChartBar,
   CheckSquare,
   FolderOpen,
   Gauge,
   GraduationCap,
   Kanban,
-  LayoutDashboard,
   ListTodo,
   Lock,
   type LucideIcon,
   Mail,
   MessageSquare,
   ReceiptText,
-  Server,
   UserRound,
   Users,
 } from "lucide-react";
@@ -63,6 +59,31 @@ export const sidebarItems: NavGroup[] = [
     label: "Dashboards",
     items: [
       {
+        id: "academy",
+        title: "Academy",
+        url: "/dashboard/academy",
+        icon: GraduationCap,
+      },
+      {
+        id: "analytics",
+        title: "Analytics",
+        url: "/dashboard/analytics",
+        icon: Gauge,
+      },
+      {
+        id: "productivity",
+        title: "Productivity",
+        url: "/dashboard/productivity",
+        icon: ListTodo,
+      },
+      {
+        id: "file-manager",
+        title: "File Manager",
+        url: "/dashboard/file-manager",
+        icon: FolderOpen,
+      },
+      /*
+      {
         id: "default",
         title: "Default",
         url: "/dashboard/default",
@@ -81,52 +102,23 @@ export const sidebarItems: NavGroup[] = [
         icon: Banknote,
       },
       {
-        id: "analytics",
-        title: "Analytics",
-        url: "/dashboard/analytics",
-        icon: Gauge,
-      },
-      {
-        id: "productivity",
-        title: "Productivity",
-        url: "/dashboard/productivity",
-        icon: ListTodo,
-      },
-      /*
-      {
         id: "ecommerce",
         title: "E-commerce",
         url: "/dashboard/ecommerce",
         icon: ShoppingBag,
       },
-      */
-      {
-        id: "academy",
-        title: "Academy",
-        url: "/dashboard/academy",
-        icon: GraduationCap,
-      },
-      /*
       {
         id: "logistics",
         title: "Logistics",
         url: "/dashboard/logistics",
         icon: Forklift,
       },
-      */
       {
         id: "infrastructure",
         title: "Infrastructure",
         url: "/dashboard/infrastructure",
         icon: Server,
       },
-      {
-        id: "file-manager",
-        title: "File Manager",
-        url: "/dashboard/file-manager",
-        icon: FolderOpen,
-      },
-      /*
       {
         id: "patient-monitoring",
         title: "Patient Monitoring",
