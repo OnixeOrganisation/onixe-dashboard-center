@@ -1,4 +1,7 @@
 import {
+  BookOpen,
+  Building,
+  Building2,
   Calendar,
   CheckSquare,
   FolderOpen,
@@ -168,6 +171,24 @@ export const sidebarItems: NavGroup[] = [
         title: "Invoice",
         url: "/dashboard/invoice",
         icon: ReceiptText,
+      },
+      {
+        id: "departments",
+        title: "Departments & Tracks",
+        url: "/dashboard/departments",
+        icon: Building,
+      },
+      {
+        id: "campuses",
+        title: "Campuses & Classrooms",
+        url: "/dashboard/campuses",
+        icon: Building2,
+      },
+      {
+        id: "courses",
+        title: "Courses & Syllabus",
+        url: "/dashboard/courses",
+        icon: BookOpen,
       },
       {
         id: "cohorts",
