@@ -282,3 +282,34 @@ html {
     -webkit-print-color-adjust: exact;
   }
 }
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes marquee-vertical-reverse {
+  from {
+    transform: translateY(-50%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical 28s linear infinite;
+}
+
+.animate-marquee-vertical-slow {
+  animation: marquee-vertical-reverse 34s linear infinite;
+}
+
+.animate-marquee-vertical:hover,
+.animate-marquee-vertical-slow:hover {
+  animation-play-state: paused;
+}

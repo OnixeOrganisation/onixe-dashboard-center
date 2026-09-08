@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Plus, QrCode } from "lucide-react";
+import { Plus, QrCode, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -12,6 +12,7 @@ interface CanvasPaperProps {
   document: CanvasDocument;
   selectedBlockId: string | null;
   onSelectBlock: (id: string) => void;
+  onDeleteBlock?: (id: string) => void;
   isPreviewMode: boolean; // false = Template Design mode with {{variables}}, true = Live Simulation with real data
   zoomLevel: number;
 }
@@ -34,7 +35,14 @@ const getSelectionClass = (isSelected: boolean, isPreview: boolean) => {
   return "hover:bg-muted/10 hover:ring-1 hover:ring-primary/40";
 };
 
-export function CanvasPaper({ document, selectedBlockId, onSelectBlock, isPreviewMode, zoomLevel }: CanvasPaperProps) {
+export function CanvasPaper({
+  document,
+  selectedBlockId,
+  onSelectBlock,
+  onDeleteBlock,
+  isPreviewMode,
+  zoomLevel,
+}: CanvasPaperProps) {
   const isLandscape = document.orientation === "landscape";
 
   // Build variable lookup dictionary for preview interpolation
@@ -121,6 +129,19 @@ export function CanvasPaper({ document, selectedBlockId, onSelectBlock, isPrevie
                       <Badge variant="default" className="h-4 px-1.5 py-0 font-mono text-[9px] uppercase">
                         {block.type}
                       </Badge>
+                      {onDeleteBlock && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteBlock(block.id);
+                          }}
+                          className="flex size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80"
+                          title="Delete block"
+                        >
+                          <Trash2 className="size-2.5" />
+                        </button>
+                      )}
                     </div>
                   )}
 
