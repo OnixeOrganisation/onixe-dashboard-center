@@ -9,6 +9,7 @@ import {
   Clock,
   DollarSign,
   FileCheck,
+  FileSignature,
   FolderOpen,
   Gauge,
   GraduationCap,
@@ -212,6 +213,12 @@ export const sidebarItems: NavGroup[] = [
     id: 5,
     label: "Workspace & Tools",
     items: [
+      {
+        id: "document-designer",
+        title: "Document Studio",
+        url: "/dashboard/document-designer",
+        icon: FileSignature,
+      },
       {
         id: "calendar",
         title: "Campus Calendar",

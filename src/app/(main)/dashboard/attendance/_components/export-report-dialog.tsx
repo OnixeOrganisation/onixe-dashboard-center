@@ -29,19 +29,20 @@ export function ExportReportDialog() {
   const [period, setPeriod] = React.useState("November 2024");
   const [format, setFormat] = React.useState("OPCO Standard PDF Certificate");
 
+  const mapStatus = (status: string): "Present" | "Justified" | "Late" | "Absent" => {
+    if (status === "Present") return "Present";
+    if (status === "Late") return "Late";
+    if (status === "Absent Justified") return "Justified";
+    return "Absent";
+  };
+
   const formattedRecords = SAMPLE_STUDENT_ATTENDANCE.map((s) => ({
     studentName: s.name,
     studentId: s.matricule,
     courseName: "Distributed Microservices Architecture with NestJS",
     date: "2024-11-18",
     timeSlot: "09:00 - 12:30",
-    status: (s.status === "Present"
-      ? "Present"
-      : s.status === "Late"
-        ? "Late"
-        : s.status === "Absent Justified"
-          ? "Justified"
-          : "Absent") as "Present" | "Justified" | "Late" | "Absent",
+    status: mapStatus(s.status),
     method: "Digital Signature (PIN)",
     justificationNote: s.justificationNote || "—",
   }));
