@@ -18,6 +18,7 @@ import {
   type LucideIcon,
   Mail,
   MessageSquare,
+  Receipt,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -180,6 +181,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Tuition & Invoicing",
         url: "/dashboard/finance",
         icon: DollarSign,
+      },
+      {
+        id: "invoice-builder",
+        title: "Invoice Designer",
+        url: "/dashboard/invoice",
+        icon: Receipt,
       },
       {
         id: "scholarships",

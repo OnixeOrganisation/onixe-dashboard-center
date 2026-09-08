@@ -2,7 +2,8 @@
 
 import * as React from "react";
 
-import { Award, Calendar, Lock, MoreHorizontal, Search, Users } from "lucide-react";
+import { Award, Calendar, Download, Lock, MoreHorizontal, Printer, Search, Users } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { exportToCsv } from "@/lib/export-engine/export-csv";
+import { printHtmlDocument } from "@/lib/export-engine/print-document";
+import { generateTranscriptHtml } from "@/lib/export-engine/templates/grade-transcript";
 
 import { CreateExamDialog } from "./create-exam-dialog";
 import { type ExamItem, INITIAL_EXAMS } from "./data";
@@ -66,6 +71,77 @@ export function GradebookList() {
     return "border-sky-600/30 bg-sky-500/10 text-sky-600 dark:text-sky-400";
   };
 
+  const handleExportAllExams = () => {
+    exportToCsv("Academic_Examinations_Schedule", exams, [
+      { key: "code", label: "Exam Code" },
+      { key: "title", label: "Assessment Title" },
+      { key: "course", label: "Course / Module" },
+      { key: "cohort", label: "Target Cohort" },
+      { key: "date", label: "Session Date" },
+      { key: "time", label: "Time Slot" },
+      { key: "room", label: "Room / Amphitheatre" },
+      { key: "examiner", label: "Lead Examiner" },
+      { key: "totalCandidates", label: "Registered Candidates" },
+      { key: "status", label: "Deliberation Status" },
+    ]);
+    toast.success("Examination Matrix Exported", {
+      description: "Downloaded complete assessment schedule as CSV/Excel.",
+    });
+  };
+
+  const handlePrintExamTranscript = (exam: ExamItem) => {
+    const sampleCourses = [
+      {
+        courseCode: exam.code,
+        courseTitle: exam.course,
+        ectsCredits: 6,
+        coefficient: 3,
+        grade: 15.5,
+        status: "Validated" as const,
+        evaluator: exam.examiner,
+      },
+      {
+        courseCode: "DEV-502",
+        courseTitle: "Cloud Infrastructure & Kubernetes",
+        ectsCredits: 5,
+        coefficient: 2,
+        grade: 14.8,
+        status: "Validated" as const,
+        evaluator: "Dr. Elena Rostova",
+      },
+      {
+        courseCode: "DEV-503",
+        courseTitle: "Full-Stack TypeScript & Next.js Architecture",
+        ectsCredits: 5,
+        coefficient: 2,
+        grade: 16.2,
+        status: "Validated" as const,
+        evaluator: "Prof. Arthur Pendelton",
+      },
+    ];
+
+    const html = generateTranscriptHtml({
+      studentName: "Cohort Representative Sample",
+      studentId: `JURY-${exam.code}`,
+      cohortName: exam.cohort,
+      academicYear: "2024 - 2025",
+      programTitle: "Master of Science in Software & Cloud Architecture",
+      departmentName: "Software Engineering & Distributed Systems",
+      courses: sampleCourses,
+      juryVerdict: "ADMITTED - HONORS (Mention Très Bien)",
+    });
+
+    printHtmlDocument({
+      title: `Deliberation_Transcript_${exam.code}_${exam.cohort}`,
+      htmlContent: html,
+      pageOrientation: "portrait",
+    });
+
+    toast.success("Deliberation Transcript Ready", {
+      description: "Generated certified academic transcript PDF.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -77,6 +153,10 @@ export function GradebookList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportAllExams}>
+            <Download className="size-4" />
+            Export Exams Matrix
+          </Button>
           <CreateExamDialog onAddExam={handleAddExam} />
         </div>
       </div>
@@ -235,6 +315,11 @@ export function GradebookList() {
                               }}
                             >
                               Enter Grades & Deliberate
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handlePrintExamTranscript(exam)}>
+                              <Printer className="mr-2 size-3.5" />
+                              Print Deliberation Transcript (PDF)
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

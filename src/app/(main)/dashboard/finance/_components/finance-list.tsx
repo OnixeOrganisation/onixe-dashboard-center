@@ -2,7 +2,16 @@
 
 import * as React from "react";
 
-import { AlertCircle, CheckCircle2, DollarSign, MoreHorizontal, Receipt, Search } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  DollarSign,
+  Download,
+  MoreHorizontal,
+  Printer,
+  Receipt,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +28,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { exportToCsv } from "@/lib/export-engine/export-csv";
+import { printHtmlDocument } from "@/lib/export-engine/print-document";
 
 import { CreateInvoiceDialog } from "./create-invoice-dialog";
 import { INITIAL_INVOICES, INITIAL_PAYMENTS, type InvoiceItem, type PaymentRecordItem } from "./data";
@@ -82,6 +93,166 @@ export function FinanceList() {
     return "border-destructive/30 bg-destructive/10 text-destructive";
   };
 
+  const handleExportInvoices = () => {
+    exportToCsv("Tuition_Invoices_And_Receivables", invoices, [
+      { key: "number", label: "Invoice #" },
+      { key: "studentName", label: "Student / Learner" },
+      { key: "cohort", label: "Cohort" },
+      { key: "sponsor", label: "Funding Sponsor / OPCO" },
+      { key: "dueDate", label: "Payment Due Date" },
+      { key: "amount", label: "Total Amount (€)" },
+      { key: "paidAmount", label: "Collected (€)" },
+      { key: "status", label: "Invoice Status" },
+    ]);
+    toast.success("Invoices Ledger Exported", {
+      description: "Downloaded billing and aging receivables database as CSV/Excel.",
+    });
+  };
+
+  const handleExportPayments = () => {
+    exportToCsv("Treasury_Encaissements_Journal", payments, [
+      { key: "receiptNumber", label: "Receipt #" },
+      { key: "studentName", label: "Student Name" },
+      { key: "invoiceNumber", label: "Settled Invoice #" },
+      { key: "date", label: "Payment Date" },
+      { key: "amount", label: "Amount Paid (€)" },
+      { key: "method", label: "Payment Method" },
+      { key: "transactionRef", label: "Bank Wire / Transaction Ref" },
+      { key: "status", label: "Status" },
+    ]);
+    toast.success("Payments Journal Exported", {
+      description: "Downloaded treasury receipts ledger as CSV/Excel.",
+    });
+  };
+
+  const handlePrintFinancialStatement = () => {
+    const currentDate = new Date().toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const getBadgeClass = (status: InvoiceItem["status"]) => {
+      if (status === "Paid") return "badge-success";
+      if (status === "Partially Paid") return "badge-info";
+      return "badge-warning";
+    };
+
+    const rowsHtml = invoices
+      .map(
+        (inv, idx) => `
+      <tr>
+        <td style="text-align: center;">${idx + 1}</td>
+        <td><strong>${inv.number}</strong></td>
+        <td>${inv.studentName}</td>
+        <td>${inv.sponsor}</td>
+        <td style="text-align: right; font-weight: 700;">${inv.amount.toLocaleString()} €</td>
+        <td style="text-align: right; color: #166534;">${inv.paidAmount.toLocaleString()} €</td>
+        <td style="text-align: right; color: #b91c1c;">${(inv.amount - inv.paidAmount).toLocaleString()} €</td>
+        <td style="text-align: center;">
+          <span class="badge ${getBadgeClass(inv.status)}">${inv.status}</span>
+        </td>
+      </tr>
+    `,
+      )
+      .join("");
+
+    const html = `
+      <header class="doc-header">
+        <div class="doc-brand">
+          <div class="doc-org-name">ONIXE INSTITUTE OF TECHNOLOGY</div>
+          <div class="doc-org-sub">Financial Administration & Bursar Office | CFA Apprentice Funding Management</div>
+          <div class="doc-org-sub">SIRET: 893 492 102 00018 | Bank Account: FR76 3000 4001 2345 6789 0123 456</div>
+        </div>
+        <div class="doc-meta">
+          <div><strong>Statement Ref:</strong> FIN-${Date.now().toString().slice(-8)}</div>
+          <div><strong>Date:</strong> ${currentDate}</div>
+          <div><strong>Accounting Period:</strong> FY 2024 - Q4</div>
+        </div>
+      </header>
+
+      <div class="doc-title-box">
+        <div class="doc-title">Official Tuition Billing & Treasury Statement</div>
+        <div class="doc-subtitle">Institutional Accounts Receivable & OPCO Settlement Summary</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; font-size: 9pt;">
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 4px;">
+          <span style="color: #64748b;">Total Billed:</span><br/>
+          <strong style="font-size: 14pt; color: #0f172a;">${totalBilled.toLocaleString()} €</strong>
+        </div>
+        <div style="background: #f0fdf4; border: 1px solid #86efac; padding: 12px; border-radius: 4px;">
+          <span style="color: #166534;">Collected Revenue:</span><br/>
+          <strong style="font-size: 14pt; color: #15803d;">${totalCollected.toLocaleString()} €</strong>
+        </div>
+        <div style="background: #fefce8; border: 1px solid #fde047; padding: 12px; border-radius: 4px;">
+          <span style="color: #854d0e;">Outstanding Receivables:</span><br/>
+          <strong style="font-size: 14pt; color: #a16207;">${totalOutstanding.toLocaleString()} €</strong>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align: center; width: 35px;">#</th>
+            <th>Invoice #</th>
+            <th>Learner</th>
+            <th>Payer / OPCO</th>
+            <th style="text-align: right;">Total Amount</th>
+            <th style="text-align: right;">Collected</th>
+            <th style="text-align: right;">Balance Due</th>
+            <th style="text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <div class="signature-grid">
+        <div class="signature-box">
+          <div class="signature-title">Bursar & Accounting Officer</div>
+          <div style="font-size: 8pt; color: #475569;">Reconciled with bank statements and verified with OPCO funding contracts.</div>
+          <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 8pt; display: flex; justify-content: space-between;">
+            <span>Chief Financial Officer</span>
+            <span>Date: ${currentDate}</span>
+          </div>
+        </div>
+
+        <div class="signature-box">
+          <div class="signature-title">Institutional Treasury Seal</div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="official-stamp">
+              ONIXE CENTER<br/>TREASURY & FINANCE
+            </div>
+            <div style="font-size: 7.5pt; color: #64748b; text-align: right;">
+              Audit Certification<br/>
+              Status: Reconciled
+            </div>
+          </div>
+          <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 8pt; display: flex; justify-content: space-between;">
+            <span>Accounting Office</span>
+            <span>Certified Ledger</span>
+          </div>
+        </div>
+      </div>
+
+      <footer class="doc-footer">
+        <div>Onixe Learning OS Financial Telemetry | Certified Audit Document | Page 1 / 1</div>
+      </footer>
+    `;
+
+    printHtmlDocument({
+      title: `Financial_Statement_${currentDate.replace(/\s+/g, "_")}`,
+      htmlContent: html,
+      pageOrientation: "portrait",
+    });
+
+    toast.success("Financial Statement PDF Ready", {
+      description: "Generated certified accounting and billing statement.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -92,7 +263,19 @@ export function FinanceList() {
             Manage tuition billing, OPCO apprenticeship collections, treasury receipts, and payment settlements.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportInvoices}>
+            <Download className="size-4" />
+            Export Invoices
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportPayments}>
+            <Download className="size-4" />
+            Export Receipts
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handlePrintFinancialStatement}>
+            <Printer className="size-4" />
+            Print Statement (PDF)
+          </Button>
           <CreateInvoiceDialog onAddInvoice={handleAddInvoice} />
         </div>
       </div>

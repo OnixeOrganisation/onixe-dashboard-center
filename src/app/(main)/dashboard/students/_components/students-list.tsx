@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Download, Eye, GraduationCap, MoreHorizontal, Search, UserCheck, Users, UserX } from "lucide-react";
+import { Download, Eye, GraduationCap, MoreHorizontal, Printer, Search, UserCheck, Users, UserX } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -21,6 +21,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { exportToCsv } from "@/lib/export-engine/export-csv";
+import { printHtmlDocument } from "@/lib/export-engine/print-document";
+import { generateSchoolCertificateHtml } from "@/lib/export-engine/templates/school-certificate";
 
 import { CreateStudentDialog } from "./create-student-dialog";
 import { mockStudents, type StudentItem } from "./data";
@@ -60,6 +63,49 @@ export function StudentsList() {
     setDetailsOpen(true);
   };
 
+  const handleExportRoster = () => {
+    exportToCsv("Registered_Students_Roster", students, [
+      { key: "matricule", label: "Student ID (Matricule)" },
+      { key: "name", label: "Full Name" },
+      { key: "email", label: "Institutional Email" },
+      { key: "phone", label: "Phone" },
+      { key: "department", label: "Department" },
+      { key: "cohort", label: "Cohort" },
+      { key: "attendanceRate", label: "Attendance Rate (%)" },
+      { key: "gradeAverage", label: "Grade Average (/20)" },
+      { key: "creditsEarned", label: "ECTS Earned" },
+      { key: "status", label: "Enrollment Status" },
+    ]);
+    toast.success("Students Roster Exported", {
+      description: "Downloaded registered students database as CSV/Excel.",
+    });
+  };
+
+  const handlePrintCertificate = (student: StudentItem) => {
+    const html = generateSchoolCertificateHtml({
+      studentName: student.name,
+      studentId: student.matricule,
+      birthDate: "15/04/2001",
+      birthPlace: "Paris, France",
+      academicYear: "2024 - 2025",
+      programTitle: "Master of Science in Software & Cloud Engineering",
+      departmentName: student.department,
+      degreeLevel: "Master Degree (RNCP Level 7, Bac+5)",
+      campusName: "Paris Central Campus - Turing Hub",
+      enrollmentStatus: "Apprenticeship CFA",
+    });
+
+    printHtmlDocument({
+      title: `Certificate_Enrollment_${student.matricule}_${student.name.replace(/\s+/g, "_")}`,
+      htmlContent: html,
+      pageOrientation: "portrait",
+    });
+
+    toast.success("Certificate of Enrollment Generated", {
+      description: `Official enrollment certificate generated for ${student.name}.`,
+    });
+  };
+
   const filteredStudents = students.filter((s) => {
     const matchesSearch =
       s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -93,14 +139,9 @@ export function StudentsList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => toast.success("Batch CSV template downloaded")}
-          >
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportRoster}>
             <Download className="size-4" />
-            Import CSV
+            Export Roster
           </Button>
           <CreateStudentDialog onStudentCreated={handleStudentCreated} />
         </div>
@@ -258,6 +299,10 @@ export function StudentsList() {
                           <DropdownMenuLabel>Student Options</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleViewDetails(student)}>
                             View Full Transcript
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePrintCertificate(student)}>
+                            <Printer className="mr-2 size-3.5" />
+                            Print School Certificate (PDF)
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => toast.info(`Transfer dialog opened for ${student.name}`)}>
                             Change Cohort

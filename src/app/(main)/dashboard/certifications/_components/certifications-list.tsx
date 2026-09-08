@@ -2,7 +2,16 @@
 
 import * as React from "react";
 
-import { CheckCircle2, GraduationCap, MoreHorizontal, Search, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  GraduationCap,
+  MoreHorizontal,
+  Printer,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +22,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { exportToCsv } from "@/lib/export-engine/export-csv";
+import { printHtmlDocument } from "@/lib/export-engine/print-document";
+import { generateDiplomaAttestationHtml } from "@/lib/export-engine/templates/diploma-attestation";
 
 import { type DiplomaItem, INITIAL_DIPLOMAS } from "./data";
 import { IssueDiplomaDialog } from "./issue-diploma-dialog";
@@ -30,6 +43,48 @@ export function CertificationsList() {
 
   const handleIssueDiploma = (newDip: DiplomaItem) => {
     setDiplomas([newDip, ...diplomas]);
+  };
+
+  const handleExportRegistry = () => {
+    exportToCsv("Diplomas_And_Credentials_Registry", diplomas, [
+      { key: "certificateNumber", label: "Certificate Number" },
+      { key: "studentName", label: "Graduate Name" },
+      { key: "degreeTitle", label: "Conferred Degree" },
+      { key: "cohort", label: "Cohort" },
+      { key: "graduationDate", label: "Conferral Date" },
+      { key: "honors", label: "Academic Honors" },
+      { key: "cryptoHash", label: "Blockchain Verification Hash" },
+      { key: "status", label: "Status" },
+    ]);
+    toast.success("Credentials Registry Exported", {
+      description: "Downloaded registered diplomas ledger as CSV/Excel.",
+    });
+  };
+
+  const handlePrintParchment = (dip: DiplomaItem) => {
+    const html = generateDiplomaAttestationHtml({
+      studentName: dip.studentName,
+      studentId: `STU-GRAD-${dip.id}`,
+      birthDate: "12/06/2000",
+      birthPlace: "Paris, France",
+      diplomaTitle: dip.degreeTitle,
+      specialization: "Advanced Distributed Systems & AI Engineering",
+      rncpLevel: "Level 7 (Master of Science Equivalent, EQF Level 7)",
+      ectsCredits: 120,
+      honors: dip.honors,
+      juryDate: dip.graduationDate,
+      certificateHash: dip.cryptoHash,
+    });
+
+    printHtmlDocument({
+      title: `Diploma_${dip.certificateNumber}_${dip.studentName.replace(/\s+/g, "_")}`,
+      htmlContent: html,
+      pageOrientation: "landscape",
+    });
+
+    toast.success("Official Parchment Generated", {
+      description: `Official certified diploma generated for ${dip.studentName}.`,
+    });
   };
 
   const filteredDiplomas = diplomas.filter((d) => {
@@ -56,6 +111,10 @@ export function CertificationsList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportRegistry}>
+            <Download className="size-4" />
+            Export Registry
+          </Button>
           <IssueDiplomaDialog onIssueDiploma={handleIssueDiploma} />
         </div>
       </div>
@@ -199,14 +258,10 @@ export function CertificationsList() {
                             >
                               Verify Proof & Hash
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                toast.success("PDF Parchment Downloaded", {
-                                  description: `Certificate for ${dip.studentName} downloaded.`,
-                                });
-                              }}
-                            >
-                              Download Digital Parchment
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handlePrintParchment(dip)}>
+                              <Printer className="mr-2 size-3.5" />
+                              Print Official Parchment (PDF)
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

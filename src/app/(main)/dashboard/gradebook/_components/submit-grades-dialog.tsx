@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Lock } from "lucide-react";
+import { Download, Lock, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { exportToCsv } from "@/lib/export-engine/export-csv";
+import { printHtmlDocument } from "@/lib/export-engine/print-document";
+import { generateTranscriptHtml } from "@/lib/export-engine/templates/grade-transcript";
 
 import { type ExamItem, SAMPLE_GRADEBOOK_RECORDS, type StudentGradeRecord } from "./data";
 
@@ -57,6 +60,74 @@ export function SubmitGradesDialog({ exam, open, onOpenChange, onValidateExam }:
         return r;
       }),
     );
+  };
+
+  const handleExportCsv = () => {
+    exportToCsv(`Gradebook_${exam.code}_${exam.cohort.replace(/\s+/g, "_")}`, records, [
+      { key: "studentName", label: "Student Name" },
+      { key: "studentId", label: "Student ID" },
+      { key: "assessment1", label: "CC 1 (/20)" },
+      { key: "assessment2", label: "CC 2 (/20)" },
+      { key: "examScore", label: "Final Exam (/20)" },
+      { key: "finalGrade", label: "Weighted Average (/20)" },
+      { key: "status", label: "Deliberation Status" },
+    ]);
+    toast.success("Gradebook CSV Exported", {
+      description: `Downloaded assessment matrix for ${exam.cohort}.`,
+    });
+  };
+
+  const handlePrintDeliberation = () => {
+    const sampleCourses = [
+      {
+        courseCode: exam.code,
+        courseTitle: exam.course,
+        ectsCredits: 6,
+        coefficient: 3,
+        grade: Number.parseFloat(classAverage),
+        status: "Validated" as const,
+        evaluator: exam.examiner,
+      },
+      {
+        courseCode: "DEV-502",
+        courseTitle: "Cloud Infrastructure & Kubernetes",
+        ectsCredits: 5,
+        coefficient: 2,
+        grade: 14.8,
+        status: "Validated" as const,
+        evaluator: "Dr. Elena Rostova",
+      },
+      {
+        courseCode: "DEV-503",
+        courseTitle: "Full-Stack TypeScript & Next.js Architecture",
+        ectsCredits: 5,
+        coefficient: 2,
+        grade: 16.2,
+        status: "Validated" as const,
+        evaluator: "Prof. Arthur Pendelton",
+      },
+    ];
+
+    const html = generateTranscriptHtml({
+      studentName: records[0]?.studentName ?? "Alexandre Mercier",
+      studentId: records[0]?.studentId ?? "STU-2024-001",
+      cohortName: exam.cohort,
+      academicYear: "2024 - 2025",
+      programTitle: "Master of Science in Software & Cloud Architecture",
+      departmentName: "Software Engineering & Distributed Systems",
+      courses: sampleCourses,
+      juryVerdict: "ADMITTED - HONORS (Mention Très Bien)",
+    });
+
+    printHtmlDocument({
+      title: `Official_Transcript_${exam.cohort}`,
+      htmlContent: html,
+      pageOrientation: "portrait",
+    });
+
+    toast.success("Official Deliberation Transcript Ready", {
+      description: "Document ready to print or save as certified PDF.",
+    });
   };
 
   const handleValidateJury = () => {
@@ -184,18 +255,30 @@ export function SubmitGradesDialog({ exam, open, onOpenChange, onValidateExam }:
           </div>
         </div>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-row">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
-            onClick={handleValidateJury}
-          >
-            <Lock className="size-3.5" />
-            Sign & Seal Jury Deliberation
-          </Button>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportCsv}>
+              <Download className="size-3.5" />
+              Export CSV
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handlePrintDeliberation}>
+              <Printer className="size-3.5" />
+              Print Deliberation Transcript
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={handleValidateJury}
+            >
+              <Lock className="size-3.5" />
+              Sign & Seal Jury Deliberation
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

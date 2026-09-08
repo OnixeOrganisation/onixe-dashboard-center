@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Mail, Phone } from "lucide-react";
+import { Download, Mail, Phone, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,6 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { printHtmlDocument } from "@/lib/export-engine/print-document";
+import { generateTranscriptHtml } from "@/lib/export-engine/templates/grade-transcript";
+import { generateSchoolCertificateHtml } from "@/lib/export-engine/templates/school-certificate";
 
 import type { StudentItem } from "./data";
 
@@ -28,9 +31,81 @@ interface StudentDetailsDialogProps {
 export function StudentDetailsDialog({ student, open, onOpenChange, onStatusChange }: StudentDetailsDialogProps) {
   if (!student) return null;
 
+  const handlePrintCertificate = () => {
+    const html = generateSchoolCertificateHtml({
+      studentName: student.name,
+      studentId: student.matricule,
+      birthDate: "15/04/2001",
+      birthPlace: "Paris, France",
+      academicYear: "2024 - 2025",
+      programTitle: "Master of Science in Software & Cloud Engineering",
+      departmentName: student.department,
+      degreeLevel: "Master Degree (RNCP Level 7, Bac+5)",
+      campusName: "Paris Central Campus - Turing Hub",
+      enrollmentStatus: "Apprenticeship CFA",
+    });
+
+    printHtmlDocument({
+      title: `Certificate_Enrollment_${student.matricule}_${student.name.replace(/\s+/g, "_")}`,
+      htmlContent: html,
+      pageOrientation: "portrait",
+    });
+
+    toast.success("Certificate of Enrollment Generated", {
+      description: `Official enrollment certificate generated for ${student.name}.`,
+    });
+  };
+
   const handleDownloadTranscript = () => {
-    toast.success("Transcript Downloaded", {
-      description: `Official PDF transcript for ${student.name} (${student.matricule}) has been generated.`,
+    const sampleCourses = [
+      {
+        courseCode: "DEV-501",
+        courseTitle: "Distributed Cloud Architecture & Microservices",
+        ectsCredits: 6,
+        coefficient: 3,
+        grade: student.gradeAverage > 0 ? student.gradeAverage : 15.5,
+        status: "Validated" as const,
+        evaluator: "Prof. Marcus Vance",
+      },
+      {
+        courseCode: "DEV-502",
+        courseTitle: "Cloud Infrastructure & Kubernetes",
+        ectsCredits: 5,
+        coefficient: 2,
+        grade: 14.8,
+        status: "Validated" as const,
+        evaluator: "Dr. Elena Rostova",
+      },
+      {
+        courseCode: "DEV-503",
+        courseTitle: "Full-Stack TypeScript & Next.js Architecture",
+        ectsCredits: 5,
+        coefficient: 2,
+        grade: 16.2,
+        status: "Validated" as const,
+        evaluator: "Prof. Arthur Pendelton",
+      },
+    ];
+
+    const html = generateTranscriptHtml({
+      studentName: student.name,
+      studentId: student.matricule,
+      cohortName: student.cohort,
+      academicYear: "2024 - 2025",
+      programTitle: "Master of Science in Software & Cloud Engineering",
+      departmentName: student.department,
+      courses: sampleCourses,
+      juryVerdict: student.gradeAverage >= 14 ? "ADMITTED - HONORS (Mention Bien)" : "ADMITTED (Pass)",
+    });
+
+    printHtmlDocument({
+      title: `Transcript_${student.matricule}_${student.name.replace(/\s+/g, "_")}`,
+      htmlContent: html,
+      pageOrientation: "portrait",
+    });
+
+    toast.success("Official Transcript Ready", {
+      description: `Generated academic transcript for ${student.name}.`,
     });
   };
 
@@ -130,17 +205,23 @@ export function StudentDetailsDialog({ student, open, onOpenChange, onStatusChan
           )}
         </div>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-row">
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
           <Button variant="destructive" size="sm" onClick={handleToggleStatus}>
             {student.status === "Active" ? "Suspend Student" : "Reactivate Student"}
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownloadTranscript}>
-            <Download className="size-3.5" />
-            Download Transcript PDF
-          </Button>
-          <Button size="sm" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrintCertificate}>
+              <Printer className="size-3.5" />
+              Certificate of Enrollment
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownloadTranscript}>
+              <Download className="size-3.5" />
+              Transcript PDF
+            </Button>
+            <Button size="sm" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

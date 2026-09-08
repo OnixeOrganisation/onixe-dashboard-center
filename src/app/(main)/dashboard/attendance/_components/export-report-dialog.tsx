@@ -17,6 +17,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { exportToCsv } from "@/lib/export-engine/export-csv";
+import { printHtmlDocument } from "@/lib/export-engine/print-document";
+import { generateAttendanceSheetHtml } from "@/lib/export-engine/templates/attendance-sheet";
+
+import { SAMPLE_STUDENT_ATTENDANCE } from "./data";
 
 export function ExportReportDialog() {
   const [open, setOpen] = React.useState(false);
@@ -24,10 +29,62 @@ export function ExportReportDialog() {
   const [period, setPeriod] = React.useState("November 2024");
   const [format, setFormat] = React.useState("OPCO Standard PDF Certificate");
 
+  const formattedRecords = SAMPLE_STUDENT_ATTENDANCE.map((s) => ({
+    studentName: s.name,
+    studentId: s.matricule,
+    courseName: "Distributed Microservices Architecture with NestJS",
+    date: "2024-11-18",
+    timeSlot: "09:00 - 12:30",
+    status: (s.status === "Present"
+      ? "Present"
+      : s.status === "Late"
+        ? "Late"
+        : s.status === "Absent Justified"
+          ? "Justified"
+          : "Absent") as "Present" | "Justified" | "Late" | "Absent",
+    method: "Digital Signature (PIN)",
+    justificationNote: s.justificationNote || "—",
+  }));
+
   const handleExport = () => {
-    toast.success("Attendance Compliance Report Generated", {
-      description: `Certified monthly attendance report for ${cohort} (${period}) generated for institutional/OPCO submission.`,
-    });
+    if (format === "Excel Detailed Telemetry Matrix") {
+      exportToCsv(
+        `Attendance_Telemetry_${cohort.replace(/\s+/g, "_")}_${period.replace(/\s+/g, "_")}`,
+        formattedRecords,
+        [
+          { key: "studentName", label: "Student Name" },
+          { key: "studentId", label: "Student ID" },
+          { key: "courseName", label: "Course / Module" },
+          { key: "date", label: "Date" },
+          { key: "timeSlot", label: "Time Slot" },
+          { key: "status", label: "Status" },
+          { key: "method", label: "Check-in Method" },
+          { key: "justificationNote", label: "Notes" },
+        ],
+      );
+      toast.success("Excel Telemetry Matrix Exported", {
+        description: `Downloaded attendance data for ${cohort} (${period}).`,
+      });
+    } else {
+      const html = generateAttendanceSheetHtml({
+        cohortName: cohort,
+        period,
+        courseName: "Distributed Microservices Architecture with NestJS",
+        instructorName: "Dr. Alexandre Merceron",
+        records: formattedRecords,
+      });
+
+      printHtmlDocument({
+        title: `Attendance_Report_${cohort}_${period}`,
+        htmlContent: html,
+        pageOrientation: "portrait",
+      });
+
+      toast.success("OPCO Compliance Sheet Generated", {
+        description: `Ready to print or save as certified PDF for ${cohort}.`,
+      });
+    }
+
     setOpen(false);
   };
 
