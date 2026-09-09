@@ -4,12 +4,11 @@ import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
-import { Download, Eraser, PanelLeftClose, PanelLeftOpen, Send, Sparkles } from "lucide-react";
+import { Download, Eraser, PanelLeft, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,15 +27,15 @@ export function AiToolsView() {
   const [isStreaming, setIsStreaming] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  const activeSession = sessions.find((s) => s.id === activeSessionId) ?? sessions[0];
 
   const handleNewChat = () => {
     const newSessionId = `session-${Date.now()}`;
     const newSession: ChatSession = {
       id: newSessionId,
-      title: "New Pedagogical Discussion",
-      lastMessageSnippet: "Empty conversation started",
-      updatedAt: "Just now",
+      title: "Nouvelle Discussion",
+      lastMessageSnippet: "Discussion initiée",
+      updatedAt: "À l'instant",
       category: "general",
       messages: [],
     };
@@ -53,7 +52,7 @@ export function AiToolsView() {
       }
       return filtered;
     });
-    toast.success("Conversation removed");
+    toast.success("Conversation supprimée");
   };
 
   const handleSelectPromptStarter = (starter: PromptStarter) => {
@@ -81,9 +80,9 @@ export function AiToolsView() {
         if (s.id === activeSessionId) {
           return {
             ...s,
-            title: currentTitle || s.title,
+            title: currentTitle ?? s.title,
             lastMessageSnippet: textToSend.substring(0, 60),
-            updatedAt: "Just now",
+            updatedAt: "À l'instant",
             messages: [...s.messages, userMessage],
           };
         }
@@ -101,75 +100,83 @@ export function AiToolsView() {
 
       const queryLower = textToSend.toLowerCase();
 
-      if (queryLower.includes("syllabus") || queryLower.includes("course") || queryLower.includes("curriculum")) {
-        assistantReplyContent = `### Generated Pedagogical Syllabus Breakdown
+      if (queryLower.includes("syllabus") || queryLower.includes("cours") || queryLower.includes("curriculum")) {
+        assistantReplyContent = `### Synthèse du Syllabus Modulaire & Compétences RNCP
 
-**Title**: Advanced Technical Curriculum Synthesis
-**Target Level**: Master (Bac+5) | **ECTS**: 6 Credits | **Accreditation**: RNCP Level 7
+**Intitulé** : Architecture Microservices Événementielles (NestJS & RabbitMQ)
+**Niveau** : Master (Bac+5) | **Volume** : 48 Heures | **Crédits** : 6 ECTS
 
 ---
 
-#### 1. Core Competencies & Learning Outcomes
-- Master scalable software paradigms, domain invariants, and asynchronous worker queues.
-- Implement production-grade testing matrices and CI/CD automated validation.
+#### 1. Objectifs Pédagogiques & Compétences Visées
+- Concevoir et implémenter une architecture microservices hexagonale résiliente.
+- Déployer un bus de messages asynchrone avec gestion des files d'attente mortes (DLX) et idempotence.
 
-#### 2. Modular Structure
-- **Module 1**: Hexagonal Architecture, Domain Aggregates & Dependency Injection (12h)
-- **Module 2**: Event Bus, Topic Routing & Asynchronous Message Processing (12h)
-- **Module 3**: Resilient Multi-Tenant Schema Storage & Data Isolation (12h)
-- **Module 4**: Telemetry, OpenTelemetry Metrics & Production Hardening (12h)
+#### 2. Découpage Modulaire (48h)
+- **Module 1** : Clean Architecture & Modélisation du Domaine Hexagonal (12h)
+- **Module 2** : Bus d'Événements & Topologies RabbitMQ (12h)
+- **Module 3** : Isolation Multi-Tenant & Stratégies de Migration (12h)
+- **Module 4** : Observabilité, Traçabilité OpenTelemetry & Hardening Production (12h)
 
-#### 3. Continuous Assessment Matrix
-- 40% Continuous Laboratory Exercises
-- 60% Final Defended Capstone Project`;
+#### 3. Modalités d'Évaluation
+- 40% Contrôle Continu (2 Ateliers Pratiques en binôme)
+- 60% Projet de Soutenance Final (Mesh de microservices déployé en environnement sandbox)`;
 
         actions = [
-          { label: "Open in Document Studio", actionKey: "open-doc-designer", variant: "default" },
-          { label: "Export to Catalog", actionKey: "export-catalog", variant: "secondary" },
+          { label: "Ouvrir dans Document Studio", actionKey: "open-doc-designer", variant: "default" },
+          { label: "Exporter vers le Catalogue", actionKey: "export-catalog", variant: "secondary" },
         ];
-      } else if (queryLower.includes("risk") || queryLower.includes("retention") || queryLower.includes("student")) {
-        assistantReplyContent = `### Predictive Retention Diagnostic Report
+      } else if (
+        queryLower.includes("risque") ||
+        queryLower.includes("retention") ||
+        queryLower.includes("decrochage") ||
+        queryLower.includes("étudiant")
+      ) {
+        assistantReplyContent = `### Rapport de Diagnostic Pédagogique & Prévention du Décrochage
 
-**Target Cohort**: Active Enrollment Telemetry
-**Risk Indicators**: Absence Frequency, Evaluation Delta, Lab Commit Velocity
+**Cohorte analysée** : Promotion Dev Master 2024-A
+**Signaux de télémétrie** : Taux d'assiduité, moyenne aux évaluations, fréquence de remise des labos
 
 ---
 
-#### Key Telemetric Findings
-1. **Critical Drop Alerts**: 2 learners exhibit risk factor scores > 70% due to concurrent assessment deficits and absence clustering.
-2. **Pedagogical Action Pathway**:
-   - Schedule one-on-one pedagogical mentoring sessions within 48 hours.
-   - Dispatch structured catch-up modules through the Remediation engine.
-   - Archive evidence for OPCO and apprenticeship contract compliance.`;
+#### 1. Apprenants Identifiés en Zone Critique
+- **Emma Roche (STU-2024-006)** — Score de risque : **82%**
+  - Baisse de présence (-18% sur 30 jours)
+  - Note d'examen à 9.1/20 en Systèmes Distribués
+  - *Action recommandée* : Entretien de remédiation sous 48h & alerte tuteur entreprise.
+- **Karim Belkacem (STU-2024-031)** — Score de risque : **74%**
+  - Note à 7.8/20 en Deep Learning
+  - 2 absences injustifiées consécutives
+  - *Action recommandée* : Parrainage par un tuteur pédagogique de promotion.`;
 
         actions = [
-          { label: "View Remediation Board", actionKey: "open-remediation", variant: "default" },
-          { label: "Send Tutor Notifications", actionKey: "send-alerts", variant: "outline" },
+          { label: "Consulter la Grille de Remédiation", actionKey: "open-remediation", variant: "default" },
+          { label: "Notifier les Tuteurs", actionKey: "send-alerts", variant: "outline" },
         ];
-      } else if (queryLower.includes("qualiopi") || queryLower.includes("audit") || queryLower.includes("indicator")) {
-        assistantReplyContent = `### Qualiopi Quality Standard Compliance Assessment
+      } else if (queryLower.includes("qualiopi") || queryLower.includes("audit") || queryLower.includes("indicateur")) {
+        assistantReplyContent = `### Audit de Conformité Qualiopi : Indicateurs 21 & 22
 
-**Focus Criteria**: Category 4 & 6 (Pedagogical Resources & Trainer Competence)
+**Référentiel National Qualité** : Catégories 4 & 6 (Ressources & Compétences Formateurs)
 
 ---
 
-#### Compliance Matrix Checklist
-- [x] **Indicator 21**: All trainers possess certified professional credentials aligned with syllabus.
-- [x] **Indicator 22**: Educational cloud environments and LMS accounts provisioned before Day 1.
-- [x] **Indicator 26**: Disability reference framework and accessible course materials validated.
+#### État des Preuves Documentaires
+- [x] **Indicateur 21 (Qualifications formateurs)** : 100% des CVs et diplômes certifiés archivés dans le coffre-fort numérique.
+- [x] **Indicateur 22 (Ressources & environnements)** : Espaces LMS Onixe activés avant le premier jour de cours.
+- [x] **Indicateur 26 (Accessibilité)** : Protocoles d'adaptation PSH validés.
 
-**Recommendation**: Ensure all quarterly attendance sheets bear digital SHA-256 verification seals.`;
+**Recommandation d'optimisation** : Vérifier que toutes les feuilles d'émargement du trimestre portent le sceau numérique SHA-256 avant inspection.`;
 
-        actions = [{ label: "Open Document Studio", actionKey: "open-doc-designer", variant: "default" }];
+        actions = [{ label: "Ouvrir Document Studio", actionKey: "open-doc-designer", variant: "default" }];
       } else {
-        assistantReplyContent = `### Pedagogical Copilot Analysis
+        assistantReplyContent = `### Réponse du Copilot Pédagogique
 
-I have processed your query against the institutional educational ontology and center guidelines:
+J'ai analysé votre requête au regard de la structure académique et des normes en vigueur :
 
-1. **Strategic Alignment**: Recommendations align with ECTS credit structures, RNCP competency standards, and multi-tenant isolation rules.
-2. **Actionable Step**: You can convert this specification into official PDF/Excel templates or register it directly into the curriculum repository.`;
+1. **Alignement Académique** : Vos modules et directives sont synchronisés avec les standards ECTS et les référentiels de compétences RNCP.
+2. **Action Immédiate** : Vous pouvez convertir ce contenu en document officiel (PDF/Excel) ou l'enregistrer dans vos maquettes pédagogiques.`;
 
-        actions = [{ label: "Open Document Studio", actionKey: "open-doc-designer", variant: "default" }];
+        actions = [{ label: "Ouvrir Document Studio", actionKey: "open-doc-designer", variant: "default" }];
       }
 
       const assistantMessage: ChatMessage = {
@@ -179,7 +186,7 @@ I have processed your query against the institutional educational ontology and c
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         metadata: {
           model: selectedModel,
-          tokensUsed: Math.floor(Math.random() * 300) + 350,
+          tokensUsed: Math.floor(Math.random() * 250) + 380,
         },
         suggestedActions: actions,
       };
@@ -196,7 +203,7 @@ I have processed your query against the institutional educational ontology and c
         }),
       );
       setIsStreaming(false);
-    }, 900);
+    }, 850);
   };
 
   const handleActionClick = (actionKey: string) => {
@@ -211,10 +218,10 @@ I have processed your query against the institutional educational ontology and c
         router.push("/centre/courses");
         break;
       case "send-alerts":
-        toast.success("Mentoring alerts dispatched to cohort tutors and administration.");
+        toast.success("Alertes de remédiation envoyées aux tuteurs de promotion.");
         break;
       default:
-        toast.info(`Action triggered: ${actionKey}`);
+        toast.info(`Action exécutée : ${actionKey}`);
     }
   };
 
@@ -225,18 +232,18 @@ I have processed your query against the institutional educational ontology and c
           return {
             ...s,
             messages: [],
-            lastMessageSnippet: "Conversation cleared",
+            lastMessageSnippet: "Discussion réinitialisée",
           };
         }
         return s;
       }),
     );
-    toast.success("Chat history cleared for this session");
+    toast.success("Historique effacé pour cette session");
   };
 
   const handleExportTranscript = () => {
     if (!activeSession || activeSession.messages.length === 0) {
-      toast.error("No messages to export");
+      toast.error("Aucun message à exporter");
       return;
     }
 
@@ -248,10 +255,10 @@ I have processed your query against the institutional educational ontology and c
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `pedagogical-ai-session-${activeSession.id}.txt`;
+    link.download = `pedagogical-ai-${activeSession.id}.txt`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success("Transcript downloaded");
+    toast.success("Transcription téléchargée");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -262,111 +269,106 @@ I have processed your query against the institutional educational ontology and c
   };
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] flex-col space-y-3">
-      {/* Top Header Bar */}
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => setIsSidebarOpen((prev) => !prev)}
-            title={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
-          >
-            {isSidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-          </Button>
+    <div className="flex h-[calc(100vh-6.5rem)] w-full overflow-hidden rounded-2xl border border-border/50 bg-background shadow-xs">
+      {/* Collapsible Left Sidebar */}
+      {isSidebarOpen && (
+        <div className="w-72 shrink-0 md:w-80">
+          <AiChatHistory
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onSelectSession={setActiveSessionId}
+            onNewChat={handleNewChat}
+            onDeleteSession={handleDeleteSession}
+            onCloseSidebar={() => setIsSidebarOpen(false)}
+          />
+        </div>
+      )}
 
-          <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Sparkles className="size-4" />
-            </div>
-            <div>
-              <h1 className="font-bold text-sm tracking-tight">Onixe Pedagogical Copilot</h1>
-              <p className="text-[11px] text-muted-foreground">
-                Domain-specific educational reasoning, syllabus synthesis, and telemetry diagnosis
-              </p>
+      {/* Main Chat Canvas */}
+      <div className="flex flex-1 flex-col overflow-hidden bg-background">
+        {/* Minimal Airy Top Navigation Bar */}
+        <div className="flex h-14 items-center justify-between border-border/40 border-b px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            {!isSidebarOpen && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-foreground"
+                onClick={() => setIsSidebarOpen(true)}
+                title="Afficher l'historique"
+              >
+                <PanelLeft className="size-4" />
+              </Button>
+            )}
+
+            <div className="flex items-center gap-2">
+              <span className="line-clamp-1 font-bold text-foreground text-sm tracking-tight">
+                {activeSession?.title ?? "Onixe Pedagogical Copilot"}
+              </span>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Model Selector */}
-          <div className="flex items-center gap-1.5">
-            <span className="font-medium text-[11px] text-muted-foreground">Model:</span>
+          <div className="flex items-center gap-2">
+            {/* Model Selector Pill */}
             <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="h-8 w-[230px] text-xs">
+              <SelectTrigger className="h-8 rounded-full border-border/60 bg-muted/30 px-3 font-medium text-xs">
+                <Sparkles className="mr-1.5 size-3.5 text-primary" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Onixe Pedagogical Copilot v2.4">Onixe Copilot v2.4 (Recommended)</SelectItem>
+                <SelectItem value="Onixe Pedagogical Copilot v2.4">Copilot v2.4 (Recommandé)</SelectItem>
                 <SelectItem value="Deep Academic Reasoner">Deep Academic Reasoner</SelectItem>
                 <SelectItem value="Curriculum Synthesizer (ECTS/RNCP)">Curriculum Synthesizer (ECTS)</SelectItem>
-                <SelectItem value="Qualiopi Quality Inspector">Qualiopi Quality Inspector</SelectItem>
+                <SelectItem value="Qualiopi Quality Inspector">Qualiopi Inspector</SelectItem>
               </SelectContent>
             </Select>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:text-foreground"
+              onClick={handleExportTranscript}
+              disabled={!activeSession || activeSession.messages.length === 0}
+              title="Exporter la transcription"
+            >
+              <Download className="size-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:text-destructive"
+              onClick={handleClearCurrentChat}
+              disabled={!activeSession || activeSession.messages.length === 0}
+              title="Effacer les messages"
+            >
+              <Eraser className="size-4" />
+            </Button>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={handleExportTranscript}
-            disabled={!activeSession || activeSession.messages.length === 0}
-          >
-            <Download className="size-3.5" />
-            Export
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-muted-foreground text-xs hover:text-destructive"
-            onClick={handleClearCurrentChat}
-            disabled={!activeSession || activeSession.messages.length === 0}
-          >
-            <Eraser className="size-3.5" />
-            Clear
-          </Button>
         </div>
-      </div>
 
-      {/* Main Workspace with Sidebar + Chat Panel */}
-      <Card className="flex flex-1 overflow-hidden border shadow-xs">
-        {/* Left Sidebar (Chat History) */}
-        {isSidebarOpen && (
-          <div className="w-72 shrink-0 md:w-80">
-            <AiChatHistory
-              sessions={sessions}
-              activeSessionId={activeSessionId}
-              onSelectSession={setActiveSessionId}
-              onNewChat={handleNewChat}
-              onDeleteSession={handleDeleteSession}
-            />
-          </div>
-        )}
+        {/* Message Thread Scroll Area */}
+        <ScrollArea className="flex-1">
+          <AiChatMessages
+            messages={activeSession?.messages ?? []}
+            isStreaming={isStreaming}
+            onSelectPromptStarter={handleSelectPromptStarter}
+            onActionClick={handleActionClick}
+          />
+        </ScrollArea>
 
-        {/* Right Main Chat Panel */}
-        <div className="flex flex-1 flex-col overflow-hidden bg-background">
-          {/* Messages Scroll Area */}
-          <ScrollArea className="flex-1">
-            <AiChatMessages
-              messages={activeSession?.messages || []}
-              isStreaming={isStreaming}
-              onSelectPromptStarter={handleSelectPromptStarter}
-              onActionClick={handleActionClick}
-            />
-          </ScrollArea>
-
-          {/* Prompt Preset Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto border-t bg-muted/10 px-4 py-2 text-xs">
-            <span className="shrink-0 font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
-              Quick Topics:
+        {/* Floating Centered Input Bar (Gemini / ChatGPT Style) */}
+        <div className="mx-auto w-full max-w-3xl px-4 pt-1 pb-4">
+          {/* Quick topic pills */}
+          <div className="no-scrollbar mb-2.5 flex items-center gap-1.5 overflow-x-auto py-0.5">
+            <span className="shrink-0 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
+              Suggestions :
             </span>
             {PROMPT_STARTERS.map((p) => (
               <Badge
                 key={p.id}
                 variant="outline"
-                className="cursor-pointer whitespace-nowrap bg-background text-[11px] hover:border-primary/40 hover:bg-accent/40"
+                className="cursor-pointer whitespace-nowrap rounded-full border-border/60 bg-muted/20 px-3 py-1 font-normal text-[11px] transition-all hover:border-primary/50 hover:bg-accent/40"
                 onClick={() => handleSelectPromptStarter(p)}
               >
                 {p.title}
@@ -374,41 +376,37 @@ I have processed your query against the institutional educational ontology and c
             ))}
           </div>
 
-          {/* Message Input Box */}
-          <div className="border-t bg-card p-3 md:p-4">
-            <div className="relative rounded-xl border bg-background p-2 focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20">
-              <Textarea
-                placeholder="Ask pedagogical copilot (e.g. Generate syllabus for Cloud & DevOps Master, analyze high-risk learners, audit Qualiopi standard)..."
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                rows={2}
-                className="resize-none border-0 p-1 text-xs shadow-none focus-visible:ring-0"
-              />
+          {/* Floating Pill Input Box */}
+          <div className="relative rounded-2xl border border-border/80 bg-card/90 p-3 shadow-lg backdrop-blur-md transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+            <Textarea
+              placeholder="Posez votre question pédagogique (ex: Rédiger le syllabus d'un Master Cloud & DevOps, diagnostiquer les étudiants en décrochage, préparer un audit Qualiopi)..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={2}
+              className="min-h-[56px] resize-none border-0 bg-transparent p-1.5 text-xs leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 sm:text-sm"
+            />
 
-              <div className="mt-2 flex items-center justify-between border-t pt-2">
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Badge variant="secondary" className="h-5 text-[10px]">
-                    Shift + Enter for new line
-                  </Badge>
-                </div>
+            <div className="mt-2 flex items-center justify-between border-border/40 border-t pt-2">
+              <span className="text-[11px] text-muted-foreground/70">
+                <kbd className="rounded border border-border/60 bg-muted/40 px-1 py-0.5 text-[10px]">Entrée</kbd> pour
+                envoyer,{" "}
+                <kbd className="rounded border border-border/60 bg-muted/40 px-1 py-0.5 text-[10px]">Maj + Entrée</kbd>{" "}
+                pour sauter une ligne
+              </span>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => handleSendMessage()}
-                    disabled={!inputText.trim() || isStreaming}
-                    size="sm"
-                    className="h-7 gap-1.5 px-3 text-xs"
-                  >
-                    <span>Send</span>
-                    <Send className="size-3" />
-                  </Button>
-                </div>
-              </div>
+              <Button
+                onClick={() => handleSendMessage()}
+                disabled={!inputText.trim() || isStreaming}
+                size="sm"
+                className="size-8 rounded-full p-0 transition-transform active:scale-95 disabled:opacity-40"
+              >
+                <Send className="size-3.5" />
+              </Button>
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

@@ -41,22 +41,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link prefetch={false} href="/dashboard/academy" className="flex items-center gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#27272A] bg-black p-1">
-                  <Image
-                    src="/images/logo-court.png"
-                    alt="Onixe Logo"
-                    width={24}
-                    height={24}
-                    className="object-contain"
-                  />
-                </div>
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-bold text-base text-foreground tracking-wide">{APP_CONFIG.name}</span>
-                  <span className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
-                    Centre de Formation
-                  </span>
-                </div>
+              <Link prefetch={false} href="/dashboard/academy" className="flex items-center gap-3 px-1">
+                <Image
+                  src="/images/logo-court.png"
+                  alt="Onixe Logo"
+                  width={32}
+                  height={32}
+                  className="size-8 shrink-0 object-contain"
+                  priority
+                />
+                <span className="font-bold text-foreground text-lg tracking-tight">{APP_CONFIG.name}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
