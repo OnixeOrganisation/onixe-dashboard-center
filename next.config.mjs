@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactCompiler: true,
+  reactCompiler: process.env.NODE_ENV === "production",
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
