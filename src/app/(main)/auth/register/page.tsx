@@ -1,30 +1,37 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { AuthHeroShowcase } from "../_components/auth-hero-showcase";
 import { RegisterForm } from "../_components/register-form";
 import { GoogleButton } from "../_components/social-auth/google-button";
 
 export default function RegisterPage() {
   return (
     <div className="flex h-dvh max-h-dvh w-full overflow-hidden bg-background">
-      {/* Left Hero Showcase with Vertical Marquee Cards */}
-      <div className="hidden h-full lg:flex lg:w-1/2 xl:w-7/12">
-        <AuthHeroShowcase />
+      {/* Left Cover Image */}
+      <div className="relative hidden h-full lg:block lg:w-1/2 xl:w-7/12">
+        <Image
+          src="/images/register-panel.jpg"
+          alt="Onixe Campus Center"
+          fill
+          priority
+          sizes="(min-width: 1280px) 58vw, 50vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/20 pointer-events-none" />
       </div>
 
-      {/* Right Authentication Form Area - Fixed, No Scroll */}
-      <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden p-6 sm:p-8 lg:w-1/2 xl:w-5/12">
+      {/* Right Authentication Form Area */}
+      <div className="flex h-full w-full flex-col items-center justify-center overflow-y-auto p-6 sm:p-8 lg:w-1/2 xl:w-5/12">
         <div className="w-full max-w-md space-y-6">
-          {/* Header & Prominent Direct Logo (No bounding box) */}
+          {/* Header & Prominent Onixe Logo */}
           <div className="flex flex-col items-center space-y-3 text-center">
             <Link href="/auth/register" className="transition-transform duration-200 hover:scale-105">
               <Image
                 src="/images/logo-long.png"
                 alt="Onixe Logo"
-                width={180}
-                height={48}
-                className="h-10 w-auto object-contain dark:brightness-110"
+                width={260}
+                height={88}
+                className="h-12 sm:h-14 w-auto object-contain dark:brightness-110 drop-shadow-sm"
                 priority
               />
             </Link>
