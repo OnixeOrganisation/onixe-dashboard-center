@@ -21,9 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StudentsApi } from "@/lib/api/center-api";
 import { exportToCsv } from "@/lib/export-engine/export-csv";
 import { printHtmlDocument } from "@/lib/export-engine/print-document";
 import { generateSchoolCertificateHtml } from "@/lib/export-engine/templates/school-certificate";
+import { useTranslation } from "@/lib/i18n/i18n-context";
 
 import { CreateStudentDialog } from "./create-student-dialog";
 import { mockStudents, type StudentItem } from "./data";
@@ -36,19 +38,54 @@ function getStudentBadgeClass(status: StudentItem["status"]) {
   if (status === "Graduated") {
     return "border-sky-600/30 bg-sky-500/10 text-sky-600 dark:text-sky-400";
   }
-  if (status === "Pending Registration") {
-    return "border-yellow-600/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400";
+  if (status === "Pending Registration" || status === "Pending Invitation") {
+    return "border-amber-600/30 bg-amber-500/10 text-amber-600 dark:text-amber-400";
   }
   return "border-destructive/30 bg-destructive/10 text-destructive";
 }
 
+function parseStudentStatus(rawStatus: string): StudentItem["status"] {
+  if (rawStatus === "PENDING_INVITATION") return "Pending Invitation";
+  if (rawStatus === "ACTIVE") return "Active";
+  return rawStatus as StudentItem["status"];
+}
+
 export function StudentsList() {
+  const { t } = useTranslation();
   const [students, setStudents] = React.useState<StudentItem[]>(mockStudents);
   const [search, setSearch] = React.useState("");
   const [selectedDept, setSelectedDept] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [selectedStudent, setSelectedStudent] = React.useState<StudentItem | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    StudentsApi.list()
+      .then((data) => {
+        if (data && data.length > 0) {
+          const mapped: StudentItem[] = data.map((d) => ({
+            id: d.id,
+            matricule: d.matricule || "STU-2026-000",
+            name: d.name || `${d.firstName || ""} ${d.lastName || ""}`.trim(),
+            email: d.email,
+            phone: d.phone || "+225 00 00 00 00",
+            department: d.department || "Génie Informatique",
+            cohort: d.cohort || "Promo 2026",
+            cohortId: d.cohortId || "coh_001",
+            enrollmentDate: d.createdAt ? d.createdAt.split("T")[0] : "2026-09-01",
+            attendanceRate: d.attendanceRate ?? 98,
+            gradeAverage: d.gradeAverage ?? 16,
+            creditsEarned: d.creditsEarned ?? 60,
+            status: parseStudentStatus(d.status),
+          }));
+          setStudents(mapped);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to load students from API:", err);
+        toast.error("Impossible de charger la liste des étudiants");
+      });
+  }, []);
 
   const handleStudentCreated = (newStudent: StudentItem) => {
     setStudents((prev) => [newStudent, ...prev]);
@@ -132,16 +169,19 @@ export function StudentsList() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl">
-            Students & Learners Directory
+            {t("students.title", "Gestion des Étudiants")}
           </h1>
           <p className="text-muted-foreground text-sm">
-            Academic records, cohorts enrollment, attendance telemetry and student transcripts.
+            {t(
+              "students.subtitle",
+              "Gérez l'affiliation multi-centres, les invitations et le suivi académique des apprenants.",
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-2" onClick={handleExportRoster}>
             <Download className="size-4" />
-            Export Roster
+            {t("students.exportReport", "Exporter le Registre")}
           </Button>
           <CreateStudentDialog onStudentCreated={handleStudentCreated} />
         </div>

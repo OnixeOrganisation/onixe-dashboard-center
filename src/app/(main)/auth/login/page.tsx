@@ -17,7 +17,7 @@ export default function LoginPage() {
           sizes="(min-width: 1280px) 58vw, 50vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/20 pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/20" />
       </div>
 
       {/* Right Authentication Form Area */}
@@ -31,7 +31,7 @@ export default function LoginPage() {
                 alt="Onixe Logo"
                 width={260}
                 height={88}
-                className="h-12 sm:h-14 w-auto object-contain dark:brightness-110 drop-shadow-sm"
+                className="h-12 w-auto object-contain drop-shadow-sm sm:h-14 dark:brightness-110"
                 priority
               />
             </Link>

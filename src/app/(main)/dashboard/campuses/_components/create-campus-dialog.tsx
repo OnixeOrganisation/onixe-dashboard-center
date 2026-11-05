@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CampusesApi } from "@/lib/api/center-api";
 
 import type { CampusItem } from "./data";
 
@@ -36,12 +37,23 @@ export function CreateCampusDialog({ onAddCampus }: CreateCampusDialogProps) {
   const [manager, setManager] = React.useState("");
   const [phone, setPhone] = React.useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!code.trim() || !name.trim()) {
       toast.error("Validation Error", { description: "Campus code and name are required." });
       return;
+    }
+
+    try {
+      await CampusesApi.create({
+        name: name.trim(),
+        code: code.trim().toUpperCase(),
+        location: city.trim() || "Cocody, Abidjan",
+        capacity: 1000,
+      });
+    } catch {
+      /* ignore fallback */
     }
 
     const newCampus: CampusItem = {

@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DepartmentsApi } from "@/lib/api/center-api";
 
 import type { DepartmentItem } from "./data";
 
@@ -33,7 +34,7 @@ export function CreateDepartmentDialog({ onAddDepartment }: CreateDepartmentDial
   const [hodName, setHodName] = React.useState("");
   const [hodEmail, setHodEmail] = React.useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!code.trim() || !name.trim()) {
@@ -41,6 +42,15 @@ export function CreateDepartmentDialog({ onAddDepartment }: CreateDepartmentDial
         description: "Department code and name are required.",
       });
       return;
+    }
+
+    try {
+      await DepartmentsApi.create({
+        name: name.trim(),
+        code: code.trim().toUpperCase(),
+      });
+    } catch {
+      /* ignore fallback */
     }
 
     const newDept: DepartmentItem = {

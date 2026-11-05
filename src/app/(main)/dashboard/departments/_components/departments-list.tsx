@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useTranslation } from "@/lib/i18n/i18n-context";
 
 import { AssignHodDialog } from "./assign-hod-dialog";
 import { CreateDepartmentDialog } from "./create-department-dialog";
@@ -23,6 +24,7 @@ import { CreateProgramDialog } from "./create-program-dialog";
 import { type DepartmentItem, INITIAL_DEPARTMENTS, type ProgramItem } from "./data";
 
 export function DepartmentsList() {
+  const { t } = useTranslation();
   const [departments, setDepartments] = React.useState<DepartmentItem[]>(INITIAL_DEPARTMENTS);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedDept, setSelectedDept] = React.useState<DepartmentItem | null>(null);
@@ -69,9 +71,9 @@ export function DepartmentsList() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-bold text-2xl tracking-tight">Academic Departments & Degree Tracks</h1>
+          <h1 className="font-bold text-2xl tracking-tight">{t("departments.title", "Départements & Programmes")}</h1>
           <p className="text-muted-foreground text-sm">
-            Structure academic faculties, assign department heads (HOD), configure study programs and degree curricula.
+            {t("departments.subtitle", "Structure académique, filières diplômantes et chefs de département (HOD).")}
           </p>
         </div>
         <div className="flex items-center gap-2">

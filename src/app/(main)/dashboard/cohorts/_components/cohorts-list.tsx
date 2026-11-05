@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "@/lib/i18n/i18n-context";
 
 import { CreateCohortDialog } from "./create-cohort-dialog";
 import { type CohortItem, mockCohorts } from "./data";
@@ -36,6 +37,7 @@ function getStatusBadgeClass(status: CohortItem["status"]) {
 }
 
 export function CohortsList() {
+  const { t } = useTranslation();
   const [cohorts, setCohorts] = React.useState<CohortItem[]>(mockCohorts);
   const [search, setSearch] = React.useState("");
   const [selectedDept, setSelectedDept] = React.useState("all");
@@ -78,9 +80,11 @@ export function CohortsList() {
       {/* Top Header & Actions */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl">Cohorts & Promotions</h1>
+          <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl">
+            {t("cohorts.title", "Promotions & Cohortes")}
+          </h1>
           <p className="text-muted-foreground text-sm">
-            Manage academic promotions, class sizes, room assignments and cohort schedules.
+            {t("cohorts.subtitle", "Organisez les promotions d'étudiants rattachées aux départements de formation.")}
           </p>
         </div>
         <div className="flex items-center gap-2">

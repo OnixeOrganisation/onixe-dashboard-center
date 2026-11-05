@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CohortsApi, DepartmentsApi } from "@/lib/api/center-api";
 
 import type { CohortItem } from "./data";
 
@@ -29,41 +30,73 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [code, setCode] = React.useState("");
-  const [department, setDepartment] = React.useState("Computer Science");
+  const [department, setDepartment] = React.useState("Génie Informatique & Cloud");
+  const [departments, setDepartments] = React.useState<Array<{ id: string; name: string }>>([]);
   const [capacity, setCapacity] = React.useState("35");
   const [room, setRoom] = React.useState("Amphi Turing");
   const [startDate, setStartDate] = React.useState("2026-09-01");
   const [endDate, setEndDate] = React.useState("2027-06-30");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (open) {
+      DepartmentsApi.list()
+        .then((data) => {
+          if (data && data.length > 0) {
+            setDepartments(data);
+            setDepartment(data[0].name);
+          }
+        })
+        .catch((err: unknown) => {
+          console.error("Failed to load departments:", err);
+          toast.error("Impossible de charger la liste des départements");
+        });
+    }
+  }, [open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !code) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
-    const newCohort: Partial<CohortItem> = {
-      id: `coh-${Date.now()}`,
-      name,
-      code,
-      department,
-      capacity: Number(capacity) || 30,
-      enrolledStudents: 0,
-      primaryRoom: room,
-      startDate,
-      endDate,
-      attendanceRate: 100,
-      status: "Starting Soon",
-      scheduleSummary: "Schedule not yet published",
-    };
+    try {
+      const selectedDept = departments.find((d) => d.name === department);
+      const created = await CohortsApi.create({
+        departmentId: selectedDept ? selectedDept.id : "dept_001",
+        departmentName: department,
+        name,
+        startDate,
+        endDate,
+        capacity: Number(capacity) || 30,
+      });
 
-    onCohortCreated?.(newCohort);
-    toast.success("Cohort created successfully", {
-      description: `Cohort ${name} (${code}) has been registered in the academic catalog.`,
-    });
-    setOpen(false);
-    setName("");
-    setCode("");
+      const newCohort: Partial<CohortItem> = {
+        id: created.id || `coh-${Date.now()}`,
+        name,
+        code,
+        department,
+        capacity: Number(capacity) || 30,
+        enrolledStudents: 0,
+        primaryRoom: room,
+        startDate,
+        endDate,
+        attendanceRate: 100,
+        status: "Starting Soon",
+        scheduleSummary: "Schedule not yet published",
+      };
+
+      onCohortCreated?.(newCohort);
+      toast.success("Cohort created successfully", {
+        description: `Cohort ${name} (${code}) rattachée au département ${department}.`,
+      });
+      setOpen(false);
+      setName("");
+      setCode("");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inattendue lors de la création de la cohorte";
+      toast.error("Error creating cohort", { description: message });
+    }
   };
 
   return (

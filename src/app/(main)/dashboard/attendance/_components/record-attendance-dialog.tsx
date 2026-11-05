@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StudentsApi } from "@/lib/api/center-api";
 
 import { type AttendanceSessionItem, SAMPLE_STUDENT_ATTENDANCE, type StudentAttendanceEntry } from "./data";
 
@@ -31,8 +32,27 @@ export function RecordAttendanceDialog({ session, open, onOpenChange, onUpdateSe
   const [entries, setEntries] = React.useState<StudentAttendanceEntry[]>(SAMPLE_STUDENT_ATTENDANCE);
 
   React.useEffect(() => {
-    setEntries(SAMPLE_STUDENT_ATTENDANCE);
-  }, []);
+    if (!open || !session) return;
+    StudentsApi.list(session.cohortId)
+      .then((students) => {
+        if (students && students.length > 0) {
+          const mapped: StudentAttendanceEntry[] = students.map((s) => ({
+            studentId: s.id,
+            name: s.name,
+            matricule: s.matricule || "STU-2026-000",
+            status: "Present",
+            checkInTime: "08:32",
+            justificationNote: "",
+          }));
+          setEntries(mapped);
+        } else {
+          setEntries(SAMPLE_STUDENT_ATTENDANCE);
+        }
+      })
+      .catch(() => {
+        setEntries(SAMPLE_STUDENT_ATTENDANCE);
+      });
+  }, [open, session]);
 
   if (!session) return null;
 

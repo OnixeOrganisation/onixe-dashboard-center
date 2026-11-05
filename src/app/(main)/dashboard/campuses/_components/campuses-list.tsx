@@ -16,12 +16,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "@/lib/i18n/i18n-context";
 
 import { CreateCampusDialog } from "./create-campus-dialog";
 import { CreateClassroomDialog } from "./create-classroom-dialog";
 import { type CampusItem, type ClassroomItem, INITIAL_CAMPUSES } from "./data";
 
 export function CampusesList() {
+  const { t } = useTranslation();
   const [campuses, setCampuses] = React.useState<CampusItem[]>(INITIAL_CAMPUSES);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCampus, setSelectedCampus] = React.useState<CampusItem | null>(null);
@@ -90,9 +92,9 @@ export function CampusesList() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-bold text-2xl tracking-tight">Campuses & Classrooms</h1>
+          <h1 className="font-bold text-2xl tracking-tight">{t("campuses.title", "Campus & Espaces Pédagogiques")}</h1>
           <p className="text-muted-foreground text-sm">
-            Manage physical tech campuses, virtual cloud learning spaces, computer labs, and seating capacities.
+            {t("campuses.subtitle", "Gestion des sites géographiques, amphithéâtres et salles de travaux pratiques.")}
           </p>
         </div>
         <div className="flex items-center gap-2">

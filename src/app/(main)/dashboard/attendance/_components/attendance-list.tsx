@@ -18,12 +18,14 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useTranslation } from "@/lib/i18n/i18n-context";
 
 import { type AttendanceSessionItem, INITIAL_ATTENDANCE_SESSIONS } from "./data";
 import { ExportReportDialog } from "./export-report-dialog";
 import { RecordAttendanceDialog } from "./record-attendance-dialog";
 
 export function AttendanceList() {
+  const { t } = useTranslation();
   const [sessions, setSessions] = React.useState<AttendanceSessionItem[]>(INITIAL_ATTENDANCE_SESSIONS);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [cohortFilter, setCohortFilter] = React.useState<string>("all");
@@ -84,9 +86,9 @@ export function AttendanceList() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-bold text-2xl tracking-tight">Attendance & Telemetry (Émargement)</h1>
+          <h1 className="font-bold text-2xl tracking-tight">{t("attendance.title", "Émargement & Assiduité")}</h1>
           <p className="text-muted-foreground text-sm">
-            Digital check-in telemetry, absence certificates, and OPCO compliance reporting.
+            {t("attendance.subtitle", "Feuilles d'appel numériques connectées aux cohortes et alertes de décrochage.")}
           </p>
         </div>
         <div className="flex items-center gap-2">

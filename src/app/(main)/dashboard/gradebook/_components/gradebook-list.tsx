@@ -22,12 +22,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { exportToCsv } from "@/lib/export-engine/export-csv";
 import { printHtmlDocument } from "@/lib/export-engine/print-document";
 import { generateTranscriptHtml } from "@/lib/export-engine/templates/grade-transcript";
+import { useTranslation } from "@/lib/i18n/i18n-context";
 
 import { CreateExamDialog } from "./create-exam-dialog";
 import { type ExamItem, INITIAL_EXAMS } from "./data";
 import { SubmitGradesDialog } from "./submit-grades-dialog";
 
 export function GradebookList() {
+  const { t } = useTranslation();
   const [exams, setExams] = React.useState<ExamItem[]>(INITIAL_EXAMS);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
@@ -147,9 +149,12 @@ export function GradebookList() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-bold text-2xl tracking-tight">Gradebook & Examination Deliberations</h1>
+          <h1 className="font-bold text-2xl tracking-tight">{t("gradebook.title", "Carnet de Notes & Évaluations")}</h1>
           <p className="text-muted-foreground text-sm">
-            Plan examinations, input continuous assessments, and validate academic jury deliberations.
+            {t(
+              "gradebook.subtitle",
+              "Planifiez les épreuves par cohorte, saisissez les notes et transmettez pour validation HOD.",
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
