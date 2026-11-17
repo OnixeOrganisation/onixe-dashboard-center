@@ -14,6 +14,7 @@ export interface InstructorItem {
   rating: number;
   totalStudentsTaught: number;
   joinedDate: string;
+  avatar?: string;
 }
 
 export const DEPARTMENTS = [

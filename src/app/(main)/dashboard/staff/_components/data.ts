@@ -11,6 +11,7 @@ export interface StaffItem {
   lastLogin: string;
   joinedDate: string;
   permissions: string[];
+  avatar?: string;
 }
 
 export const STAFF_ROLES = [

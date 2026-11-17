@@ -3,7 +3,7 @@
 import { Download, Mail, Phone, Printer } from "lucide-react";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -150,6 +150,7 @@ export function StudentDetailsDialog({ student, open, onOpenChange, onStatusChan
           {/* Header Profile Card */}
           <div className="flex items-center gap-4 rounded-xl border bg-muted/20 p-4">
             <Avatar className="size-14">
+              {student.avatar && <AvatarImage src={student.avatar} alt={student.name} />}
               <AvatarFallback className="font-semibold text-base">
                 {student.name.slice(0, 2).toUpperCase()}
               </AvatarFallback>

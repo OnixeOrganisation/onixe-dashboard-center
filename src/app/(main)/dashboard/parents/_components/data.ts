@@ -17,6 +17,7 @@ export interface ParentItem {
   linkedStudents: LinkedStudentInfo[];
   status: "Active" | "Invited" | "Suspended";
   lastAccess: string;
+  avatar?: string;
 }
 
 export const INITIAL_PARENTS: ParentItem[] = [

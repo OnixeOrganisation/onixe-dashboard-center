@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserAvatarPicker } from "@/components/ui/user-avatar-picker";
 
 import { DEPARTMENTS, INSTRUCTOR_STATUSES, type InstructorItem } from "./data";
 import type { CreateInstructorPayload } from "./instructors.api";
@@ -36,6 +37,7 @@ export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDial
   const [status, setStatus] = React.useState<InstructorItem["status"]>("Full-Time");
   const [maxWeeklyHours, setMaxWeeklyHours] = React.useState("20");
   const [initialCourse, setInitialCourse] = React.useState("");
+  const [avatar, setAvatar] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,6 +61,7 @@ export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDial
         status,
         maxWeeklyHours: Number.parseInt(maxWeeklyHours, 10) || 20,
         initialCourse: initialCourse.trim() || undefined,
+        avatar: avatar.trim() || undefined,
       };
 
       const success = await onAddInstructor(payload);
@@ -68,6 +71,7 @@ export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDial
         setPhone("");
         setSpecialization("");
         setInitialCourse("");
+        setAvatar("");
         setOpen(false);
       }
     } finally {
@@ -93,6 +97,14 @@ export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDial
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            <UserAvatarPicker
+              value={avatar}
+              onChange={setAvatar}
+              name={name || "Instructor"}
+              label="Photo de profil / Avatar de l'enseignant"
+              description="Importer la photo officielle de l'intervenant pour l'annuaire enseignant."
+            />
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="inst-name">Full Name *</Label>

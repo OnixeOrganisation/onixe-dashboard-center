@@ -11,6 +11,7 @@ export interface CreateInstructorPayload {
   status: InstructorItem["status"];
   maxWeeklyHours: number;
   initialCourse?: string;
+  avatar?: string;
 }
 
 export async function fetchInstructors(): Promise<InstructorItem[]> {

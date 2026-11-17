@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { RetakeSessionItem } from "./data";
+import { scheduleRetakeApi } from "./remediation.api";
 
 interface ScheduleRetakeDialogProps {
   onAddRetake: (session: RetakeSessionItem) => void;
@@ -34,6 +35,7 @@ const COURSES = [
 
 export function ScheduleRetakeDialog({ onAddRetake }: ScheduleRetakeDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [title, setTitle] = React.useState("");
   const [course, setCourse] = React.useState(COURSES[0]);
   const [examiner, setExaminer] = React.useState("Dr. Alexandre Merceron");
@@ -41,7 +43,7 @@ export function ScheduleRetakeDialog({ onAddRetake }: ScheduleRetakeDialogProps)
   const [time, setTime] = React.useState("10:00 - 12:00");
   const [room, setRoom] = React.useState("Classroom Euler");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title.trim()) {
@@ -49,27 +51,29 @@ export function ScheduleRetakeDialog({ onAddRetake }: ScheduleRetakeDialogProps)
       return;
     }
 
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const newSession: RetakeSessionItem = {
-      id: `ret-${Date.now()}`,
-      code: `RETAKE-${randomNum}`,
-      title: title.trim(),
-      course,
-      examiner,
-      date,
-      time,
-      room,
-      enrolledStudentsCount: 1,
-      status: "Scheduled",
-    };
+    try {
+      setIsSubmitting(true);
+      const created = await scheduleRetakeApi({
+        title: title.trim(),
+        course,
+        examiner,
+        date,
+        time,
+        room,
+      });
 
-    onAddRetake(newSession);
-    toast.success("Remediation Session Scheduled", {
-      description: `${newSession.title} scheduled for ${newSession.date}.`,
-    });
+      onAddRetake(created);
+      toast.success("Remediation Session Scheduled", {
+        description: `${created.title} scheduled for ${created.date}.`,
+      });
 
-    setTitle("");
-    setOpen(false);
+      setTitle("");
+      setOpen(false);
+    } catch (err: any) {
+      toast.error("Failed to schedule retake", { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -85,19 +89,19 @@ export function ScheduleRetakeDialog({ onAddRetake }: ScheduleRetakeDialogProps)
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="size-5 text-primary" />
-              Schedule Remediation / Retake Exam
+              Schedule Official Retake Examination
             </DialogTitle>
             <DialogDescription>
-              Program a retake exam session for students with failing grades below 10/20.
+              Set up a second-chance jury session for students needing course remediation to validate required ECTS.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="space-y-1.5">
-              <Label htmlFor="ret-title">Retake Exam Title *</Label>
+              <Label htmlFor="ret-title">Session Title *</Label>
               <Input
                 id="ret-title"
-                placeholder="e.g. Kubernetes SRE Retake Session"
+                placeholder="e.g. Distributed Microservices Retake Examination"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -105,10 +109,10 @@ export function ScheduleRetakeDialog({ onAddRetake }: ScheduleRetakeDialogProps)
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="ret-course">Subject</Label>
+              <Label htmlFor="ret-course">Remediation Course</Label>
               <Select value={course} onValueChange={setCourse}>
                 <SelectTrigger id="ret-course">
-                  <SelectValue placeholder="Select Course" />
+                  <SelectValue placeholder="Course" />
                 </SelectTrigger>
                 <SelectContent>
                   {COURSES.map((c) => (
@@ -122,37 +126,35 @@ export function ScheduleRetakeDialog({ onAddRetake }: ScheduleRetakeDialogProps)
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="ret-date">Date</Label>
-                <Input id="ret-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ret-time">Time Slot</Label>
+                <Label htmlFor="ret-exam">Supervising Examiner</Label>
                 <Input
-                  id="ret-time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  placeholder="10:00 - 12:00"
+                  id="ret-exam"
+                  placeholder="Prof. Name"
+                  value={examiner}
+                  onChange={(e) => setExaminer(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ret-room">Examination Room</Label>
+                <Input id="ret-room" placeholder="Lab / Room" value={room} onChange={(e) => setRoom(e.target.value)} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="ret-room">Room</Label>
-                <Input
-                  id="ret-room"
-                  value={room}
-                  onChange={(e) => setRoom(e.target.value)}
-                  placeholder="Classroom Euler"
-                />
+                <Label htmlFor="ret-date">Date *</Label>
+                <Input id="ret-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
               </div>
+
               <div className="space-y-1.5">
-                <Label htmlFor="ret-exam">Examiner</Label>
+                <Label htmlFor="ret-time">Time Slot *</Label>
                 <Input
-                  id="ret-exam"
-                  value={examiner}
-                  onChange={(e) => setExaminer(e.target.value)}
-                  placeholder="Dr. Alexandre Merceron"
+                  id="ret-time"
+                  placeholder="10:00 - 12:00"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -162,7 +164,16 @@ export function ScheduleRetakeDialog({ onAddRetake }: ScheduleRetakeDialogProps)
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Schedule Retake</Button>
+            <Button type="submit" disabled={isSubmitting} className="gap-2">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                "Schedule & Notify Candidates"
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

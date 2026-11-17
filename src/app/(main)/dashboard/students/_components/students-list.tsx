@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -349,6 +349,7 @@ export function StudentsList() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="size-8">
+                            {student.avatar && <AvatarImage src={student.avatar} alt={student.name} />}
                             <AvatarFallback className="text-xs">
                               {student.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { AlertCircle, Award, Calendar, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, Award, Calendar, CheckCircle2, Loader2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,21 +11,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import {
-  type EligibleStudentItem,
-  INITIAL_ELIGIBLE_STUDENTS,
-  INITIAL_RETAKE_SESSIONS,
-  type RetakeSessionItem,
-} from "./data";
+import type { EligibleStudentItem, RetakeSessionItem } from "./data";
+import { fetchEligibleStudents, fetchRetakeSessions } from "./remediation.api";
 import { ScheduleRetakeDialog } from "./schedule-retake-dialog";
 
 export function RemediationList() {
-  const [students, setStudents] = React.useState<EligibleStudentItem[]>(INITIAL_ELIGIBLE_STUDENTS);
-  const [sessions, setSessions] = React.useState<RetakeSessionItem[]>(INITIAL_RETAKE_SESSIONS);
+  const [students, setStudents] = React.useState<EligibleStudentItem[]>([]);
+  const [sessions, setSessions] = React.useState<RetakeSessionItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
 
+  const loadData = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [studentsData, sessionsData] = await Promise.all([fetchEligibleStudents(), fetchRetakeSessions()]);
+      setStudents(studentsData || []);
+      setSessions(sessionsData || []);
+    } catch (err: any) {
+      toast.error("Error loading remediation data", {
+        description: err.message || "Failed to reach NestJS API gateway.",
+      });
+      setStudents([]);
+      setSessions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const handleAddRetake = (newSession: RetakeSessionItem) => {
-    setSessions([newSession, ...sessions]);
+    setSessions((prev) => [newSession, ...prev]);
+    // Refresh students status
+    fetchEligibleStudents().then((res) => {
+      if (res) setStudents(res);
+    });
   };
 
   const handleAssignToSession = (studentId: string) => {
@@ -50,7 +72,7 @@ export function RemediationList() {
   });
 
   const totalEligible = students.length;
-  const totalEctsAtRisk = students.reduce((acc, s) => acc + s.ectsAtRisk, 0);
+  const totalEctsAtRisk = students.reduce((acc, s) => acc + (s.ectsAtRisk || 0), 0);
   const scheduledCount = students.filter((s) => s.retakeStatus === "Session Scheduled").length;
 
   const getStatusBadgeClass = (status: EligibleStudentItem["retakeStatus"]) => {
@@ -70,188 +92,197 @@ export function RemediationList() {
         <div>
           <h1 className="font-bold text-2xl tracking-tight">Remediation & Retake Examinations</h1>
           <p className="text-muted-foreground text-sm">
-            Automated detection of learners with grades below 10/20, ECTS recovery tracking, and retake session
-            scheduling.
+            Live database detection of learners with grades below 10/20, ECTS recovery tracking, and retake jury
+            sessions.
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={loadData} disabled={isLoading}>
+            <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <ScheduleRetakeDialog onAddRetake={handleAddRetake} />
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-              Eligible for Retake
-            </span>
-            <AlertCircle className="size-4 text-amber-500" />
+      {isLoading ? (
+        <div className="flex h-64 flex-col items-center justify-center gap-2">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">Connecting to live NestJS remediation database...</p>
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  Eligible for Retake
+                </span>
+                <AlertCircle className="size-4 text-amber-500" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">{totalEligible} learners</div>
+              <div className="mt-1 font-medium text-amber-600 text-xs">Grades below 10.0 / 20</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  ECTS Credits at Risk
+                </span>
+                <Award className="size-4 text-destructive" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">{totalEctsAtRisk} ECTS</div>
+              <div className="mt-1 text-muted-foreground text-xs">Requires second chance jury</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  Scheduled Sessions
+                </span>
+                <Calendar className="size-4 text-sky-500" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">{sessions.length} sessions</div>
+              <div className="mt-1 text-muted-foreground text-xs">{scheduledCount} student(s) slotted</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  Target Recovery Rate
+                </span>
+                <CheckCircle2 className="size-4 text-emerald-500" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">85%</div>
+              <div className="mt-1 font-medium text-emerald-600 text-xs">Based on academic history</div>
+            </Card>
           </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">{totalEligible} learners</div>
-          <div className="mt-1 font-medium text-amber-600 text-xs">Grades below 10.0 / 20</div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-              ECTS Credits at Risk
-            </span>
-            <Award className="size-4 text-destructive" />
-          </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">{totalEctsAtRisk} pts</div>
-          <div className="mt-1 text-muted-foreground text-xs">Subject to remediation recovery</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-              Sessions Scheduled
-            </span>
-            <Calendar className="size-4 text-sky-500" />
-          </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">{sessions.length}</div>
-          <div className="mt-1 text-muted-foreground text-xs">{scheduledCount} enrolled candidates</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-              Recovery Potential
-            </span>
-            <RefreshCw className="size-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">100%</div>
-          <div className="mt-1 font-medium text-emerald-600 text-xs">All students assigned to juries</div>
-        </Card>
-      </div>
-
-      {/* Main Tabs */}
-      <Tabs defaultValue="students" className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList>
-            <TabsTrigger value="students" className="text-xs">
-              Learners Requiring Retakes ({students.length})
-            </TabsTrigger>
-            <TabsTrigger value="sessions" className="text-xs">
-              Scheduled Retake Juries ({sessions.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="relative min-w-[240px]">
+          {/* Search bar */}
+          <div className="relative max-w-sm">
             <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
             <Input
-              placeholder="Search learner, subject, cohort..."
-              className="h-9 pl-8 text-xs"
+              placeholder="Search student, course, or cohort..."
+              className="pl-8 text-xs"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </div>
 
-        {/* Eligible Students List */}
-        <TabsContent value="students">
-          <Card>
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-base">Students Below Passing Threshold (&lt; 10/20)</CardTitle>
-              <CardDescription className="text-xs">
-                Candidates identified by pedagogical algorithms eligible for examination recovery.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y border-t">
-                {filteredStudents.map((student) => (
-                  <div
-                    key={student.id}
-                    className="flex flex-col gap-3 p-4 text-xs sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-lg border bg-amber-500/10 font-bold text-amber-600 text-sm">
-                        {student.failedGrade}
-                      </div>
-                      <div className="grid gap-0.5">
+          {/* Tabs for Candidates vs Scheduled Sessions */}
+          <Tabs defaultValue="students" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="students" className="text-xs">
+                Eligible Learners ({students.length})
+              </TabsTrigger>
+              <TabsTrigger value="sessions" className="text-xs">
+                Scheduled Retake Sessions ({sessions.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="students" className="space-y-3">
+              {filteredStudents.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-xs">
+                  No students currently flagged for academic remediation.
+                </div>
+              ) : (
+                filteredStudents.map((st) => (
+                  <Card key={st.id} className="transition-colors hover:border-primary/40">
+                    <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground text-sm">{student.name}</span>
-                          <Badge variant="outline" className="font-mono text-[10px]">
-                            {student.matricule}
+                          <span className="font-semibold text-foreground text-sm">{st.name}</span>
+                          <span className="font-mono text-muted-foreground text-xs">({st.matricule})</span>
+                          <Badge variant="outline" className={getStatusBadgeClass(st.retakeStatus)}>
+                            {st.retakeStatus}
                           </Badge>
                         </div>
-                        <span className="text-[11px] text-muted-foreground">
-                          {student.cohort} • Subject:{" "}
-                          <strong className="text-foreground">{student.failedCourse}</strong>
-                        </span>
+                        <p className="text-muted-foreground text-xs">
+                          {st.cohort} • Failed: <span className="font-medium text-foreground">{st.failedCourse}</span>
+                        </p>
+                        <div className="flex items-center gap-3 font-medium text-xs">
+                          <span className="text-destructive">Grade: {st.failedGrade} / 20</span>
+                          <span>•</span>
+                          <span className="text-amber-600 dark:text-amber-400">ECTS at risk: {st.ectsAtRisk} ECTS</span>
+                          {st.scheduledDate && (
+                            <>
+                              <span>•</span>
+                              <span className="text-sky-600 dark:text-sky-400">Jury date: {st.scheduledDate}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-                      <Badge variant="secondary" className="font-semibold text-[11px]">
-                        {student.ectsAtRisk} ECTS at risk
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {st.retakeStatus === "Eligible" ? (
+                          <Button size="sm" variant="outline" onClick={() => handleAssignToSession(st.id)}>
+                            Assign to Session
+                          </Button>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs font-normal">
+                            Session Confirmed
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
 
-                      <Badge variant="secondary" className={getStatusBadgeClass(student.retakeStatus)}>
-                        {student.retakeStatus}
-                      </Badge>
-
-                      {student.retakeStatus === "Eligible" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => handleAssignToSession(student.id)}
+            <TabsContent value="sessions" className="space-y-3">
+              {sessions.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-xs">
+                  No remediation sessions currently registered in database.
+                </div>
+              ) : (
+                sessions.map((sess) => (
+                  <Card key={sess.id}>
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {sess.code}
+                          </Badge>
+                          <CardTitle className="text-base font-semibold">{sess.title}</CardTitle>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            sess.status === "Scheduled"
+                              ? "border-sky-600/30 bg-sky-500/10 text-sky-600"
+                              : "border-emerald-600/30 bg-emerald-500/10 text-emerald-600"
+                          }
                         >
-                          Enroll in Retake
-                        </Button>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">Scheduled: {student.scheduledDate}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Retake Sessions List */}
-        <TabsContent value="sessions">
-          <div className="grid gap-4 md:grid-cols-2">
-            {sessions.map((session) => (
-              <Card key={session.id} className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {session.code}
-                    </Badge>
-                    <CardTitle className="pt-1 text-base">{session.title}</CardTitle>
-                    <CardDescription className="text-xs">{session.course}</CardDescription>
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    className="border-sky-600/30 bg-sky-500/10 text-sky-600 text-xs dark:text-sky-400"
-                  >
-                    {session.status}
-                  </Badge>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-4 text-xs">
-                  <div>
-                    <span className="text-[11px] text-muted-foreground">Date & Time</span>
-                    <div className="font-medium text-foreground">
-                      {session.date} • {session.time}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-muted-foreground">Room & Examiner</span>
-                    <div className="font-medium text-foreground">
-                      {session.room} ({session.examiner})
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                          {sess.status}
+                        </Badge>
+                      </div>
+                      <CardDescription className="text-xs">{sess.course}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4 pt-1 text-xs">
+                      <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
+                        <div>
+                          Examiner: <strong className="text-foreground">{sess.examiner}</strong>
+                        </div>
+                        <div>
+                          Date: <strong className="text-foreground">{sess.date}</strong> ({sess.time})
+                        </div>
+                        <div>
+                          Room: <strong className="text-foreground">{sess.room}</strong>
+                        </div>
+                      </div>
+                      <div className="font-medium text-foreground">
+                        {sess.enrolledStudentsCount} candidate(s) enrolled
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
   );
 }

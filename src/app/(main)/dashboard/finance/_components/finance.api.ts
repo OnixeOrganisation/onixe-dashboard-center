@@ -15,41 +15,50 @@ export interface RevenueSummary {
   paymentsTotalCount: number;
 }
 
-export const financeApi = {
-  getInvoices: async (status?: string): Promise<InvoiceItem[]> => {
-    const query = status && status !== "all" ? `?status=${encodeURIComponent(status)}` : "";
-    return apiClient.get<InvoiceItem[]>(`/centre/finance/invoices${query}`);
-  },
+export async function fetchInvoices(status?: string): Promise<InvoiceItem[]> {
+  const query = status && status !== "all" ? `?status=${encodeURIComponent(status)}` : "";
+  const res = await apiClient<InvoiceItem[]>(`centre/finance/invoices${query}`);
+  return res.data;
+}
 
-  getPayments: async (): Promise<PaymentRecordItem[]> => {
-    return apiClient.get<PaymentRecordItem[]>("/centre/finance/payments");
-  },
+export async function fetchPayments(): Promise<PaymentRecordItem[]> {
+  const res = await apiClient<PaymentRecordItem[]>("centre/finance/payments");
+  return res.data;
+}
 
-  getRevenueSummary: async (): Promise<RevenueSummary> => {
-    return apiClient.get<RevenueSummary>("/centre/finance/revenue-summary");
-  },
+export async function fetchRevenueSummary(): Promise<RevenueSummary> {
+  const res = await apiClient<RevenueSummary>("centre/finance/revenue-summary");
+  return res.data;
+}
 
-  createInvoice: async (data: {
-    studentName: string;
-    studentMatricule?: string;
-    cohort: string;
-    sponsor?: string;
-    amount: number;
-    dueDate: string;
-    issueDate?: string;
-  }): Promise<InvoiceItem> => {
-    return apiClient.post<InvoiceItem>("/centre/finance/invoices", data);
-  },
+export async function createInvoiceApi(data: {
+  studentName: string;
+  studentMatricule?: string;
+  cohort: string;
+  sponsor?: string;
+  amount: number;
+  dueDate: string;
+  issueDate?: string;
+}): Promise<InvoiceItem> {
+  const res = await apiClient<InvoiceItem>("centre/finance/invoices", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return res.data;
+}
 
-  recordPayment: async (data: {
-    invoiceId: string;
-    amount: number;
-    paymentMethod: string;
-    transactionReference?: string;
-  }): Promise<{ payment: PaymentRecordItem; updatedInvoice: InvoiceItem }> => {
-    return apiClient.post<{ payment: PaymentRecordItem; updatedInvoice: InvoiceItem }>(
-      "/centre/finance/record-payment",
-      data,
-    );
-  },
-};
+export async function recordPaymentApi(data: {
+  invoiceId: string;
+  amount: number;
+  paymentMethod: string;
+  transactionReference?: string;
+}): Promise<{ payment: PaymentRecordItem; updatedInvoice: InvoiceItem }> {
+  const res = await apiClient<{ payment: PaymentRecordItem; updatedInvoice: InvoiceItem }>(
+    "centre/finance/record-payment",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
+  return res.data;
+}

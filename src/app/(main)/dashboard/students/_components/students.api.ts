@@ -12,6 +12,7 @@ export interface CreateStudentPayload {
   cohortId?: string;
   guardianName?: string;
   guardianEmail?: string;
+  avatar?: string;
   status?: StudentStatus;
 }
 

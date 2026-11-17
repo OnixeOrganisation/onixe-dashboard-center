@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserAvatarPicker } from "@/components/ui/user-avatar-picker";
 
 import { ACCESS_LEVELS, STAFF_DEPARTMENTS, STAFF_ROLES, type StaffItem } from "./data";
+import { createStaffApi } from "./staff.api";
 
 interface CreateStaffDialogProps {
   onAddStaff: (staff: StaffItem) => void;
@@ -27,14 +29,16 @@ interface CreateStaffDialogProps {
 
 export function CreateStaffDialog({ onAddStaff }: CreateStaffDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [role, setRole] = React.useState<string>(STAFF_ROLES[0]);
   const [department, setDepartment] = React.useState<string>(STAFF_DEPARTMENTS[0]);
   const [accessLevel, setAccessLevel] = React.useState<StaffItem["accessLevel"]>("Operator");
+  const [avatar, setAvatar] = React.useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim() || !email.trim()) {
@@ -44,7 +48,6 @@ export function CreateStaffDialog({ onAddStaff }: CreateStaffDialogProps) {
       return;
     }
 
-    const randomNum = Math.floor(100 + Math.random() * 900);
     const getPermissionsForAccessLevel = (level: StaffItem["accessLevel"]): string[] => {
       if (level === "Super Admin") {
         return ["org:manage", "centre:full_access", "users:all"];
@@ -58,30 +61,34 @@ export function CreateStaffDialog({ onAddStaff }: CreateStaffDialogProps) {
       return ["students:view", "attendance:record"];
     };
 
-    const newStaff: StaffItem = {
-      id: `stf-${Date.now()}`,
-      matricule: `STF-2024-${randomNum}`,
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim() || "+33 1 00 00 00 00",
-      role,
-      department,
-      accessLevel,
-      status: "Active",
-      lastLogin: "Never logged in",
-      joinedDate: new Date().toISOString().split("T")[0],
-      permissions: getPermissionsForAccessLevel(accessLevel),
-    };
+    try {
+      setIsSubmitting(true);
+      const created = await createStaffApi({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || "+33 1 00 00 00 00",
+        role,
+        department,
+        accessLevel,
+        permissions: getPermissionsForAccessLevel(accessLevel),
+        avatar: avatar.trim() || undefined,
+      });
 
-    onAddStaff(newStaff);
-    toast.success("Staff Member Registered", {
-      description: `${newStaff.name} appointed as ${newStaff.role}.`,
-    });
+      onAddStaff(created);
+      toast.success("Staff Member Enrolled", {
+        description: `${created.name} (${created.role}) has been assigned to ${created.department}.`,
+      });
 
-    setName("");
-    setEmail("");
-    setPhone("");
-    setOpen(false);
+      setName("");
+      setEmail("");
+      setPhone("");
+      setAvatar("");
+      setOpen(false);
+    } catch (err: any) {
+      toast.error("Failed to enroll staff member", { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -89,58 +96,71 @@ export function CreateStaffDialog({ onAddStaff }: CreateStaffDialogProps) {
       <DialogTrigger asChild>
         <Button size="sm" className="gap-2">
           <UserPlus className="size-4" />
-          Add Staff Member
+          Enroll Staff Member
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Register Center Staff & Administration</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="size-5 text-primary" />
+              Enroll Training Center Staff & Admin
+            </DialogTitle>
             <DialogDescription>
-              Grant system access to administrative personnel, financial officers, and campus coordinators.
+              Assign operational roles, governance responsibilities, and administrative RBAC permissions.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            <UserAvatarPicker
+              value={avatar}
+              onChange={setAvatar}
+              name={name || "Staff"}
+              label="Photo de profil / Avatar du collaborateur"
+              description="Importer la photo officielle du membre du personnel ou saisir une URL."
+            />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="staff-name">Full Name *</Label>
+              <Input
+                id="staff-name"
+                placeholder="e.g. Catherine Delorme"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="stf-name">Full Name *</Label>
+                <Label htmlFor="staff-email">Institutional Email *</Label>
                 <Input
-                  id="stf-name"
-                  placeholder="e.g. Catherine Delorme"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="stf-email">Work Email *</Label>
-                <Input
-                  id="stf-email"
+                  id="staff-email"
                   type="email"
-                  placeholder="name@onixe.institute"
+                  placeholder="c.delorme@onixe.institute"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="staff-phone">Phone Number</Label>
+                <Input
+                  id="staff-phone"
+                  placeholder="+33 1 45 67 89 10"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="stf-phone">Phone</Label>
-                <Input
-                  id="stf-phone"
-                  placeholder="+33 1 45 67 89 10"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="stf-role">Role / Position</Label>
+                <Label htmlFor="staff-role">Operational Role *</Label>
                 <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger id="stf-role">
-                    <SelectValue placeholder="Select Role" />
+                  <SelectTrigger id="staff-role">
+                    <SelectValue placeholder="Role" />
                   </SelectTrigger>
                   <SelectContent>
                     {STAFF_ROLES.map((r) => (
@@ -151,14 +171,12 @@ export function CreateStaffDialog({ onAddStaff }: CreateStaffDialogProps) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="stf-dept">Department</Label>
+                <Label htmlFor="staff-dept">Department *</Label>
                 <Select value={department} onValueChange={setDepartment}>
-                  <SelectTrigger id="stf-dept">
-                    <SelectValue placeholder="Select Department" />
+                  <SelectTrigger id="staff-dept">
+                    <SelectValue placeholder="Department" />
                   </SelectTrigger>
                   <SelectContent>
                     {STAFF_DEPARTMENTS.map((d) => (
@@ -169,21 +187,22 @@ export function CreateStaffDialog({ onAddStaff }: CreateStaffDialogProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="stf-access">Access Level</Label>
-                <Select value={accessLevel} onValueChange={(v) => setAccessLevel(v as StaffItem["accessLevel"])}>
-                  <SelectTrigger id="stf-access">
-                    <SelectValue placeholder="Select Access Level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ACCESS_LEVELS.map((lvl) => (
-                      <SelectItem key={lvl} value={lvl}>
-                        {lvl}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="staff-access">RBAC Access Level</Label>
+              <Select value={accessLevel} onValueChange={(v) => setAccessLevel(v as StaffItem["accessLevel"])}>
+                <SelectTrigger id="staff-access">
+                  <SelectValue placeholder="Access Level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACCESS_LEVELS.map((lvl) => (
+                    <SelectItem key={lvl} value={lvl}>
+                      {lvl}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -191,7 +210,16 @@ export function CreateStaffDialog({ onAddStaff }: CreateStaffDialogProps) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Save Staff Member</Button>
+            <Button type="submit" disabled={isSubmitting} className="gap-2">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Enrolling...
+                </>
+              ) : (
+                "Enroll Staff & Generate Credentials"
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

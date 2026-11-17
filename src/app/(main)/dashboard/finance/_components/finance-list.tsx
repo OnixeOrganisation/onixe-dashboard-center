@@ -7,9 +7,11 @@ import {
   CheckCircle2,
   DollarSign,
   Download,
+  Loader2,
   MoreHorizontal,
   Printer,
   Receipt,
+  RefreshCw,
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -32,24 +34,47 @@ import { exportToCsv } from "@/lib/export-engine/export-csv";
 import { printHtmlDocument } from "@/lib/export-engine/print-document";
 
 import { CreateInvoiceDialog } from "./create-invoice-dialog";
-import { INITIAL_INVOICES, INITIAL_PAYMENTS, type InvoiceItem, type PaymentRecordItem } from "./data";
+import type { InvoiceItem, PaymentRecordItem } from "./data";
+import { fetchInvoices, fetchPayments } from "./finance.api";
 import { RecordPaymentDialog } from "./record-payment-dialog";
 
 export function FinanceList() {
-  const [invoices, setInvoices] = React.useState<InvoiceItem[]>(INITIAL_INVOICES);
-  const [payments, setPayments] = React.useState<PaymentRecordItem[]>(INITIAL_PAYMENTS);
+  const [invoices, setInvoices] = React.useState<InvoiceItem[]>([]);
+  const [payments, setPayments] = React.useState<PaymentRecordItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
 
   const [selectedInvoice, setSelectedInvoice] = React.useState<InvoiceItem | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
 
+  const loadData = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [invoicesData, paymentsData] = await Promise.all([fetchInvoices(), fetchPayments()]);
+      setInvoices(invoicesData || []);
+      setPayments(paymentsData || []);
+    } catch (err: any) {
+      toast.error("Error loading financial ledger", {
+        description: err.message || "Failed to reach NestJS API gateway.",
+      });
+      setInvoices([]);
+      setPayments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const handleAddInvoice = (newInv: InvoiceItem) => {
-    setInvoices([newInv, ...invoices]);
+    setInvoices((prev) => [newInv, ...prev]);
   };
 
   const handleAddPayment = (newPayment: PaymentRecordItem, invoiceId: string, paidAmount: number) => {
-    setPayments([newPayment, ...payments]);
+    setPayments((prev) => [newPayment, ...prev]);
     setInvoices((prev) =>
       prev.map((inv) => {
         if (inv.id === invoiceId) {
@@ -75,9 +100,9 @@ export function FinanceList() {
   });
 
   // KPI Calculations
-  const totalBilled = invoices.reduce((acc, i) => acc + i.amount, 0);
-  const totalCollected = invoices.reduce((acc, i) => acc + i.paidAmount, 0);
-  const totalOutstanding = totalBilled - totalCollected;
+  const totalBilled = invoices.reduce((acc, i) => acc + (i.amount || 0), 0);
+  const totalCollected = invoices.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+  const totalOutstanding = Math.max(0, totalBilled - totalCollected);
   const recoveryRate = Math.round((totalCollected / (totalBilled || 1)) * 100);
 
   const getStatusBadgeClass = (status: InvoiceItem["status"]) => {
@@ -111,13 +136,13 @@ export function FinanceList() {
 
   const handleExportPayments = () => {
     exportToCsv("Treasury_Encaissements_Journal", payments, [
-      { key: "receiptNumber", label: "Receipt #" },
+      { key: "id", label: "Receipt #" },
       { key: "studentName", label: "Student Name" },
       { key: "invoiceNumber", label: "Settled Invoice #" },
-      { key: "date", label: "Payment Date" },
+      { key: "paymentDate", label: "Payment Date" },
       { key: "amount", label: "Amount Paid (€)" },
-      { key: "method", label: "Payment Method" },
-      { key: "transactionRef", label: "Bank Wire / Transaction Ref" },
+      { key: "paymentMethod", label: "Payment Method" },
+      { key: "transactionReference", label: "Bank Wire / Transaction Ref" },
       { key: "status", label: "Status" },
     ]);
     toast.success("Payments Journal Exported", {
@@ -146,9 +171,9 @@ export function FinanceList() {
         <td><strong>${inv.number}</strong></td>
         <td>${inv.studentName}</td>
         <td>${inv.sponsor}</td>
-        <td style="text-align: right; font-weight: 700;">${inv.amount.toLocaleString()} €</td>
-        <td style="text-align: right; color: #166534;">${inv.paidAmount.toLocaleString()} €</td>
-        <td style="text-align: right; color: #b91c1c;">${(inv.amount - inv.paidAmount).toLocaleString()} €</td>
+        <td style="text-align: right; font-weight: 700;">${(inv.amount || 0).toLocaleString()} €</td>
+        <td style="text-align: right; color: #166534;">${(inv.paidAmount || 0).toLocaleString()} €</td>
+        <td style="text-align: right; color: #b91c1c;">${Math.max(0, (inv.amount || 0) - (inv.paidAmount || 0)).toLocaleString()} €</td>
         <td style="text-align: center;">
           <span class="badge ${getBadgeClass(inv.status)}">${inv.status}</span>
         </td>
@@ -167,7 +192,7 @@ export function FinanceList() {
         <div class="doc-meta">
           <div><strong>Statement Ref:</strong> FIN-${Date.now().toString().slice(-8)}</div>
           <div><strong>Date:</strong> ${currentDate}</div>
-          <div><strong>Accounting Period:</strong> FY 2024 - Q4</div>
+          <div><strong>Accounting Period:</strong> FY 2026 - Live Ledger</div>
         </div>
       </header>
 
@@ -178,25 +203,25 @@ export function FinanceList() {
 
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; font-size: 9pt;">
         <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 4px;">
-          <span style="color: #64748b;">Total Billed:</span><br/>
-          <strong style="font-size: 14pt; color: #0f172a;">${totalBilled.toLocaleString()} €</strong>
+          <div style="color: #64748b; margin-bottom: 4px;">Total Billed Tuition</div>
+          <div style="font-size: 14pt; font-weight: bold; color: #0f172a;">${totalBilled.toLocaleString()} €</div>
         </div>
-        <div style="background: #f0fdf4; border: 1px solid #86efac; padding: 12px; border-radius: 4px;">
-          <span style="color: #166534;">Collected Revenue:</span><br/>
-          <strong style="font-size: 14pt; color: #15803d;">${totalCollected.toLocaleString()} €</strong>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 4px;">
+          <div style="color: #64748b; margin-bottom: 4px;">Total Collected Revenue</div>
+          <div style="font-size: 14pt; font-weight: bold; color: #166534;">${totalCollected.toLocaleString()} €</div>
         </div>
-        <div style="background: #fefce8; border: 1px solid #fde047; padding: 12px; border-radius: 4px;">
-          <span style="color: #854d0e;">Outstanding Receivables:</span><br/>
-          <strong style="font-size: 14pt; color: #a16207;">${totalOutstanding.toLocaleString()} €</strong>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 4px;">
+          <div style="color: #64748b; margin-bottom: 4px;">Outstanding Aging Receivables</div>
+          <div style="font-size: 14pt; font-weight: bold; color: #b91c1c;">${totalOutstanding.toLocaleString()} €</div>
         </div>
       </div>
 
-      <table>
+      <table class="doc-table">
         <thead>
           <tr>
-            <th style="text-align: center; width: 35px;">#</th>
-            <th>Invoice #</th>
-            <th>Learner</th>
+            <th style="width: 35px; text-align: center;">#</th>
+            <th>Invoice Number</th>
+            <th>Student Name</th>
             <th>Payer / OPCO</th>
             <th style="text-align: right;">Total Amount</th>
             <th style="text-align: right;">Collected</th>
@@ -212,7 +237,7 @@ export function FinanceList() {
       <div class="signature-grid">
         <div class="signature-box">
           <div class="signature-title">Bursar & Accounting Officer</div>
-          <div style="font-size: 8pt; color: #475569;">Reconciled with bank statements and verified with OPCO funding contracts.</div>
+          <div style="font-size: 8pt; color: #475569;">Reconciled with live NestJS database and verified with OPCO funding contracts.</div>
           <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 8pt; display: flex; justify-content: space-between;">
             <span>Chief Financial Officer</span>
             <span>Date: ${currentDate}</span>
@@ -227,7 +252,7 @@ export function FinanceList() {
             </div>
             <div style="font-size: 7.5pt; color: #64748b; text-align: right;">
               Audit Certification<br/>
-              Status: Reconciled
+              Status: Live Synchronized
             </div>
           </div>
           <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 8pt; display: flex; justify-content: space-between;">
@@ -238,7 +263,7 @@ export function FinanceList() {
       </div>
 
       <footer class="doc-footer">
-        <div>Onixe Learning OS Financial Telemetry | Certified Audit Document | Page 1 / 1</div>
+        <div>Onixe Learning OS Financial Telemetry | Certified Live Database Document | Page 1 / 1</div>
       </footer>
     `;
 
@@ -260,10 +285,14 @@ export function FinanceList() {
         <div>
           <h1 className="font-bold text-2xl tracking-tight">Tuition Invoicing & Financial Ledger</h1>
           <p className="text-muted-foreground text-sm">
-            Manage tuition billing, OPCO apprenticeship collections, treasury receipts, and payment settlements.
+            Live database ledger: tuition billing, OPCO apprenticeship collections, treasury receipts, and settlements.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={loadData} disabled={isLoading}>
+            <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={handleExportInvoices}>
             <Download className="size-4" />
             Export Invoices
@@ -280,251 +309,274 @@ export function FinanceList() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-              Total Billed Tuition
-            </span>
-            <DollarSign className="size-4 text-primary" />
+      {isLoading ? (
+        <div className="flex h-64 flex-col items-center justify-center gap-2">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">Connecting to live NestJS financial database...</p>
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  Total Billed Tuition
+                </span>
+                <DollarSign className="size-4 text-primary" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">{totalBilled.toLocaleString()} €</div>
+              <div className="mt-1 text-muted-foreground text-xs">Across all active promotions</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  Collected Revenue
+                </span>
+                <CheckCircle2 className="size-4 text-emerald-500" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">{totalCollected.toLocaleString()} €</div>
+              <div className="mt-1 font-medium text-emerald-600 text-xs">{recoveryRate}% recovery compliance</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  Outstanding Balance
+                </span>
+                <AlertCircle className="size-4 text-amber-500" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">{totalOutstanding.toLocaleString()} €</div>
+              <div className="mt-1 font-medium text-amber-600 text-xs">Pending OPCO & learner wires</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                  Settled Receipts
+                </span>
+                <Receipt className="size-4 text-purple-500" />
+              </div>
+              <div className="mt-2 font-bold text-2xl tracking-tight">{payments.length}</div>
+              <div className="mt-1 text-muted-foreground text-xs">Verified transaction entries</div>
+            </Card>
           </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">{totalBilled.toLocaleString()} €</div>
-          <div className="mt-1 text-muted-foreground text-xs">Across all active promotions</div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-              Collected Revenue
-            </span>
-            <CheckCircle2 className="size-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">{totalCollected.toLocaleString()} €</div>
-          <div className="mt-1 font-medium text-emerald-600 text-xs">{recoveryRate}% recovery compliance</div>
-        </Card>
+          {/* Main Tabs */}
+          <Tabs defaultValue="invoices" className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <TabsList>
+                <TabsTrigger value="invoices" className="text-xs">
+                  Tuition Invoices ({invoices.length})
+                </TabsTrigger>
+                <TabsTrigger value="payments" className="text-xs">
+                  Payment Receipts Ledger ({payments.length})
+                </TabsTrigger>
+              </TabsList>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-              Outstanding Balance
-            </span>
-            <AlertCircle className="size-4 text-amber-500" />
-          </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">{totalOutstanding.toLocaleString()} €</div>
-          <div className="mt-1 font-medium text-amber-600 text-xs">Pending OPCO & learner wires</div>
-        </Card>
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-[240px]">
+                  <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search invoice, student, sponsor..."
+                    className="h-9 pl-8 text-xs"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">Settled Receipts</span>
-            <Receipt className="size-4 text-purple-500" />
-          </div>
-          <div className="mt-2 font-bold text-2xl tracking-tight">{payments.length}</div>
-          <div className="mt-1 text-muted-foreground text-xs">Verified transaction entries</div>
-        </Card>
-      </div>
-
-      {/* Main Tabs */}
-      <Tabs defaultValue="invoices" className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList>
-            <TabsTrigger value="invoices" className="text-xs">
-              Tuition Invoices ({invoices.length})
-            </TabsTrigger>
-            <TabsTrigger value="payments" className="text-xs">
-              Payment Receipts Ledger ({payments.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex items-center gap-2">
-            <div className="relative min-w-[240px]">
-              <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-              <Input
-                placeholder="Search invoice, student, sponsor..."
-                className="h-9 pl-8 text-xs"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 w-[150px] text-xs">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 w-[150px] text-xs">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Paid">Paid</SelectItem>
-                <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="Overdue">Overdue</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Invoices Table */}
-        <TabsContent value="invoices">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px]">Invoice / Learner</TableHead>
-                    <TableHead>Cohort</TableHead>
-                    <TableHead>Funding Sponsor</TableHead>
-                    <TableHead className="w-[140px] text-right">Amount / Paid</TableHead>
-                    <TableHead className="w-[120px]">Due Date</TableHead>
-                    <TableHead className="w-[120px]">Status</TableHead>
-                    <TableHead className="w-[80px] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInvoices.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                        No invoices found matching criteria.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredInvoices.map((inv) => (
-                      <TableRow key={inv.id}>
-                        <TableCell>
-                          <div className="grid gap-0.5 text-xs">
-                            <span className="font-semibold text-foreground text-sm">{inv.studentName}</span>
-                            <div className="flex items-center gap-1.5 text-muted-foreground">
-                              <span className="font-mono text-[11px]">{inv.number}</span>
-                              <span>•</span>
-                              <span className="font-mono text-[11px]">{inv.studentMatricule}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <span className="font-medium text-foreground text-xs">{inv.cohort}</span>
-                        </TableCell>
-
-                        <TableCell>
-                          <span className="text-muted-foreground text-xs">{inv.sponsor}</span>
-                        </TableCell>
-
-                        <TableCell className="text-right">
-                          <div className="grid gap-0.5 text-xs">
-                            <span className="font-bold text-foreground">{inv.amount.toLocaleString()} €</span>
-                            <span className="text-[11px] text-muted-foreground">
-                              Paid: {inv.paidAmount.toLocaleString()} €
-                            </span>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <span className="text-muted-foreground text-xs">{inv.dueDate}</span>
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge variant="secondary" className={getStatusBadgeClass(inv.status)}>
-                            {inv.status}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedInvoice(inv);
-                                  setPaymentDialogOpen(true);
-                                }}
-                              >
-                                Record Payment / Collection
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  toast.success("PDF Invoice Downloaded", {
-                                    description: `Official invoice ${inv.number} downloaded.`,
-                                  });
-                                }}
-                              >
-                                Download Invoice PDF
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+            {/* Invoices Table */}
+            <TabsContent value="invoices">
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[200px]">Invoice / Learner</TableHead>
+                        <TableHead>Cohort</TableHead>
+                        <TableHead>Funding Sponsor</TableHead>
+                        <TableHead className="w-[140px] text-right">Amount / Paid</TableHead>
+                        <TableHead className="w-[120px]">Due Date</TableHead>
+                        <TableHead className="w-[120px]">Status</TableHead>
+                        <TableHead className="w-[80px] text-right">Actions</TableHead>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInvoices.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                            No invoices found in database.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredInvoices.map((inv) => (
+                          <TableRow key={inv.id}>
+                            <TableCell>
+                              <div className="grid gap-0.5 text-xs">
+                                <span className="font-semibold text-foreground text-sm">{inv.studentName}</span>
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <span className="font-mono text-[11px]">{inv.number}</span>
+                                  <span>•</span>
+                                  <span className="font-mono text-[11px]">{inv.studentMatricule}</span>
+                                </div>
+                              </div>
+                            </TableCell>
 
-        {/* Payments Ledger */}
-        <TabsContent value="payments">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Receipt / Reference</TableHead>
-                    <TableHead>Learner / Invoice</TableHead>
-                    <TableHead>Payment Date</TableHead>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead className="text-right">Amount Settled</TableHead>
-                    <TableHead className="w-[120px]">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell>
-                        <div className="grid gap-0.5 text-xs">
-                          <span className="font-mono font-semibold text-foreground">{p.transactionReference}</span>
-                          <span className="text-[11px] text-muted-foreground">ID: {p.id}</span>
-                        </div>
-                      </TableCell>
+                            <TableCell>
+                              <span className="font-medium text-foreground text-xs">{inv.cohort}</span>
+                            </TableCell>
 
-                      <TableCell>
-                        <div className="grid gap-0.5 text-xs">
-                          <span className="font-medium text-foreground">{p.studentName}</span>
-                          <span className="font-mono text-[11px] text-muted-foreground">{p.invoiceNumber}</span>
-                        </div>
-                      </TableCell>
+                            <TableCell>
+                              <span className="text-muted-foreground text-xs">{inv.sponsor}</span>
+                            </TableCell>
 
-                      <TableCell className="text-muted-foreground text-xs">{p.paymentDate}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="grid gap-0.5 text-xs">
+                                <span className="font-bold text-foreground">
+                                  {(inv.amount || 0).toLocaleString()} €
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  Paid: {(inv.paidAmount || 0).toLocaleString()} €
+                                </span>
+                              </div>
+                            </TableCell>
 
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {p.paymentMethod}
-                        </Badge>
-                      </TableCell>
+                            <TableCell>
+                              <span className="text-muted-foreground text-xs">{inv.dueDate}</span>
+                            </TableCell>
 
-                      <TableCell className="text-right font-bold text-emerald-600 text-sm">
-                        +{p.amount.toLocaleString()} €
-                      </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className={getStatusBadgeClass(inv.status)}>
+                                {inv.status}
+                              </Badge>
+                            </TableCell>
 
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className="border-emerald-600/30 bg-emerald-500/10 text-emerald-600 text-xs dark:text-emerald-400"
-                        >
-                          {p.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="size-8">
+                                    <MoreHorizontal className="size-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedInvoice(inv);
+                                      setPaymentDialogOpen(true);
+                                    }}
+                                  >
+                                    Record Payment / Collection
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      toast.success("PDF Invoice Downloaded", {
+                                        description: `Official invoice ${inv.number} downloaded.`,
+                                      });
+                                    }}
+                                  >
+                                    Download Invoice PDF
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Payments Ledger */}
+            <TabsContent value="payments">
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Receipt / Reference</TableHead>
+                        <TableHead>Learner / Invoice</TableHead>
+                        <TableHead>Payment Date</TableHead>
+                        <TableHead>Payment Method</TableHead>
+                        <TableHead className="text-right">Amount Settled</TableHead>
+                        <TableHead className="w-[120px]">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                            No receipts found in database.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        payments.map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell>
+                              <div className="grid gap-0.5 text-xs">
+                                <span className="font-mono font-semibold text-foreground">
+                                  {p.transactionReference}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">ID: {p.id}</span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell>
+                              <div className="grid gap-0.5 text-xs">
+                                <span className="font-medium text-foreground">{p.studentName}</span>
+                                <span className="font-mono text-[11px] text-muted-foreground">{p.invoiceNumber}</span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="text-muted-foreground text-xs">{p.paymentDate}</TableCell>
+
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {p.paymentMethod}
+                              </Badge>
+                            </TableCell>
+
+                            <TableCell className="text-right font-bold text-emerald-600 text-sm">
+                              +{(p.amount || 0).toLocaleString()} €
+                            </TableCell>
+
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className="border-emerald-600/30 bg-emerald-500/10 text-emerald-600 text-xs dark:text-emerald-400"
+                              >
+                                {p.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
 
       {/* Record Payment Modal */}
       <RecordPaymentDialog

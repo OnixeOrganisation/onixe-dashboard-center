@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserAvatarPicker } from "@/components/ui/user-avatar-picker";
 
 import type { StudentItem } from "./data";
 import type { CreateStudentPayload } from "./students.api";
@@ -38,6 +39,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
   const [cohort, setCohort] = React.useState("Software Engineering 2026-A");
   const [guardianName, setGuardianName] = React.useState("");
   const [guardianEmail, setGuardianEmail] = React.useState("");
+  const [avatar, setAvatar] = React.useState("");
 
   React.useEffect(() => {
     if (open && !matricule) {
@@ -62,6 +64,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
       cohortId: "coh-001",
       guardianName: guardianName.trim() || undefined,
       guardianEmail: guardianEmail.trim() || undefined,
+      avatar: avatar.trim() || undefined,
       status: "Active",
     };
 
@@ -77,6 +80,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
           setMatricule("");
           setGuardianName("");
           setGuardianEmail("");
+          setAvatar("");
         }
       } else {
         setOpen(false);
@@ -104,6 +108,14 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            <UserAvatarPicker
+              value={avatar}
+              onChange={setAvatar}
+              name={name || "Student"}
+              label="Photo d'identité / Avatar de l'apprenant"
+              description="Importer un fichier (PNG, JPG, WebP) ou coller l'URL d'une photo."
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="stu-matricule">Matricule / Student ID *</Label>

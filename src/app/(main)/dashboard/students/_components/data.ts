@@ -15,6 +15,7 @@ export interface StudentItem {
   creditsEarned: number;
   guardianName?: string;
   guardianEmail?: string;
+  avatar?: string;
   status: StudentStatus;
 }
 

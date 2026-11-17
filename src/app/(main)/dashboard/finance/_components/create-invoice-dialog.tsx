@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { InvoiceItem } from "./data";
-import { financeApi } from "./finance.api";
+import { createInvoiceApi } from "./finance.api";
 
 interface CreateInvoiceDialogProps {
   onAddInvoice: (inv: InvoiceItem) => void;
@@ -54,7 +54,7 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
 
     try {
       setIsSubmitting(true);
-      const created = await financeApi.createInvoice({
+      const created = await createInvoiceApi({
         studentName: studentName.trim(),
         studentMatricule: studentMatricule.trim() || undefined,
         cohort,

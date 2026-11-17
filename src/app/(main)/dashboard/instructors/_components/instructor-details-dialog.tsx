@@ -3,7 +3,7 @@
 import { Award, BookOpen, Clock, Mail, Phone, Star, Users } from "lucide-react";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,6 +79,7 @@ export function InstructorDetailsDialog({
           {/* Contact and Overview Card */}
           <div className="flex items-center gap-4 rounded-xl border bg-muted/20 p-4">
             <Avatar className="size-14">
+              {instructor.avatar && <AvatarImage src={instructor.avatar} alt={instructor.name} />}
               <AvatarFallback className="font-semibold text-base">
                 {instructor.name.slice(0, 2).toUpperCase()}
               </AvatarFallback>
