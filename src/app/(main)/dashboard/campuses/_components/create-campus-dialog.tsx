@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Building2, Plus } from "lucide-react";
+import { Building2, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { CreateCampusPayload } from "./campuses.api";
 import type { CampusItem } from "./data";
 
 interface CreateCampusDialogProps {
-  onAddCampus: (campus: CampusItem) => void;
+  onAddCampus: (payload: CreateCampusPayload) => Promise<boolean>;
 }
 
 export function CreateCampusDialog({ onAddCampus }: CreateCampusDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const [code, setCode] = React.useState("");
   const [name, setName] = React.useState("");
   const [type, setType] = React.useState<CampusItem["type"]>("Physical");
@@ -36,7 +39,7 @@ export function CreateCampusDialog({ onAddCampus }: CreateCampusDialogProps) {
   const [manager, setManager] = React.useState("");
   const [phone, setPhone] = React.useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!code.trim() || !name.trim()) {
@@ -44,8 +47,7 @@ export function CreateCampusDialog({ onAddCampus }: CreateCampusDialogProps) {
       return;
     }
 
-    const newCampus: CampusItem = {
-      id: `camp-${Date.now()}`,
+    const payload: CreateCampusPayload = {
       code: code.trim().toUpperCase(),
       name: name.trim(),
       type,
@@ -54,24 +56,30 @@ export function CreateCampusDialog({ onAddCampus }: CreateCampusDialogProps) {
       address: address.trim() || "Main Campus Facility",
       manager: manager.trim() || "Operations Lead",
       phone: phone.trim() || "+33 1 00 00 00 00",
-      totalCapacity: 0,
-      classroomsCount: 0,
-      activeCohortsCount: 0,
-      classrooms: [],
     };
 
-    onAddCampus(newCampus);
-    toast.success("Campus Established", {
-      description: `${newCampus.name} has been configured.`,
-    });
-
-    setCode("");
-    setName("");
-    setCity("");
-    setAddress("");
-    setManager("");
-    setPhone("");
-    setOpen(false);
+    setIsSaving(true);
+    try {
+      const success = await onAddCampus(payload);
+      if (success) {
+        toast.success("Campus Established", {
+          description: `${payload.name} (${payload.code}) has been configured successfully.`,
+        });
+        setCode("");
+        setName("");
+        setCity("");
+        setAddress("");
+        setManager("");
+        setPhone("");
+        setOpen(false);
+      }
+    } catch {
+      toast.error("Error", {
+        description: "Failed to establish campus. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -169,10 +177,13 @@ export function CreateCampusDialog({ onAddCampus }: CreateCampusDialogProps) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Establish Campus</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSaving ? "Establishing..." : "Establish Campus"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

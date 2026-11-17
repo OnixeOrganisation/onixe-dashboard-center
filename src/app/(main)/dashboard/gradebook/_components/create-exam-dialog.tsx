@@ -20,9 +20,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { ExamItem } from "./data";
+import type { ScheduleExamPayload } from "./gradebook.api";
 
 interface CreateExamDialogProps {
-  onAddExam: (exam: ExamItem) => void;
+  onAddExam: (payload: ScheduleExamPayload) => Promise<boolean>;
 }
 
 const AVAILABLE_COURSES = [
@@ -44,6 +45,7 @@ const AVAILABLE_COHORTS = [
 
 export function CreateExamDialog({ onAddExam }: CreateExamDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [title, setTitle] = React.useState("");
   const [course, setCourse] = React.useState(AVAILABLE_COURSES[0]);
   const [cohort, setCohort] = React.useState(AVAILABLE_COHORTS[0]);
@@ -54,18 +56,16 @@ export function CreateExamDialog({ onAddExam }: CreateExamDialogProps) {
   const [type, setType] = React.useState<ExamItem["type"]>("Final Exam");
   const [candidates, _setCandidates] = React.useState("30");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error("Validation Error", { description: "Exam title is required." });
+      toast.error("Erreur de validation", { description: "Le titre de l'examen est obligatoire." });
       return;
     }
 
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const newExam: ExamItem = {
-      id: `exam-${Date.now()}`,
-      code: `EXAM-${randomNum}`,
+    setIsSubmitting(true);
+    const success = await onAddExam({
       title: title.trim(),
       course,
       cohort,
@@ -76,16 +76,13 @@ export function CreateExamDialog({ onAddExam }: CreateExamDialogProps) {
       examiner,
       type,
       totalCandidates: Number.parseInt(candidates, 10) || 25,
-      status: "Scheduled",
-    };
-
-    onAddExam(newExam);
-    toast.success("Examination Scheduled", {
-      description: `${newExam.title} scheduled for ${newExam.cohort} on ${newExam.date}.`,
     });
+    setIsSubmitting(false);
 
-    setTitle("");
-    setOpen(false);
+    if (success) {
+      setTitle("");
+      setOpen(false);
+    }
   };
 
   return (
@@ -207,10 +204,12 @@ export function CreateExamDialog({ onAddExam }: CreateExamDialogProps) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Confirm Schedule</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Planification..." : "Confirm Schedule"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

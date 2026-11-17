@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { UserCheck } from "lucide-react";
+import { Loader2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,13 +23,14 @@ interface AssignHodDialogProps {
   department: DepartmentItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdateHod: (deptId: string, hod: DepartmentItem["headOfDepartment"]) => void;
+  onUpdateHod: (deptId: string, hod: DepartmentItem["headOfDepartment"]) => Promise<boolean>;
 }
 
 export function AssignHodDialog({ department, open, onOpenChange, onUpdateHod }: AssignHodDialogProps) {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [matricule, setMatricule] = React.useState("");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (department?.headOfDepartment) {
@@ -41,24 +42,29 @@ export function AssignHodDialog({ department, open, onOpenChange, onUpdateHod }:
 
   if (!department) return null;
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error("Validation Error", { description: "Faculty name is required." });
       return;
     }
 
-    onUpdateHod(department.id, {
+    const hodData = {
       id: department.headOfDepartment.id || `inst-${Date.now()}`,
       name: name.trim(),
       email: email.trim() || `${name.toLowerCase().replace(/\s+/g, ".")}@onixe.institute`,
       matricule: matricule.trim() || `FAC-2024-${Math.floor(100 + Math.random() * 900)}`,
-    });
+    };
 
-    toast.success("Head of Department Appointed", {
-      description: `${name} is now Head of Department for ${department.name}.`,
-    });
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const success = await onUpdateHod(department.id, hodData);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -83,6 +89,7 @@ export function AssignHodDialog({ department, open, onOpenChange, onUpdateHod }:
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Dr. Alexandre Merceron"
+                disabled={isSaving}
                 required
               />
             </div>
@@ -95,6 +102,7 @@ export function AssignHodDialog({ department, open, onOpenChange, onUpdateHod }:
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@onixe.institute"
+                disabled={isSaving}
               />
             </div>
 
@@ -105,15 +113,19 @@ export function AssignHodDialog({ department, open, onOpenChange, onUpdateHod }:
                 value={matricule}
                 onChange={(e) => setMatricule(e.target.value)}
                 placeholder="FAC-2024-001"
+                disabled={isSaving}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Confirm Appointment</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Confirm Appointment
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

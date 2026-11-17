@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Award, DollarSign, MoreHorizontal, Search, Sparkles, Users } from "lucide-react";
+import { Award, DollarSign, Loader2, MoreHorizontal, RefreshCw, Search, Sparkles, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -20,22 +21,78 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { AwardScholarshipDialog } from "./award-scholarship-dialog";
-import { INITIAL_SCHOLARSHIPS, SCHOLARSHIP_TYPES, type ScholarshipItem } from "./data";
+import { SCHOLARSHIP_TYPES, type ScholarshipItem } from "./data";
+import {
+  type AwardScholarshipPayload,
+  awardScholarshipApi,
+  fetchScholarships,
+  updateScholarshipStatusApi,
+} from "./scholarships.api";
 
 export function ScholarshipsList() {
-  const [scholarships, setScholarships] = React.useState<ScholarshipItem[]>(INITIAL_SCHOLARSHIPS);
+  const [scholarships, setScholarships] = React.useState<ScholarshipItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<string>("all");
 
-  const handleAddScholarship = (newSch: ScholarshipItem) => {
-    setScholarships([newSch, ...scholarships]);
+  const loadData = React.useCallback(async (showToast = false) => {
+    try {
+      const data = await fetchScholarships();
+      setScholarships(Array.isArray(data) ? data : []);
+      if (showToast) {
+        toast.success("Bourses synchronisées", {
+          description: "Registres des bourses et aides financières chargés depuis le serveur NestJS.",
+        });
+      }
+    } catch (err) {
+      toast.error("Impossible de charger les bourses", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadData(false);
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(true);
   };
 
-  const handleRevokeScholarship = (schId: string) => {
-    setScholarships((prev) => prev.map((s) => (s.id === schId ? { ...s, status: "Revoked" } : s)));
-    toast.info("Scholarship Revoked", {
-      description: "Scholarship status updated to revoked.",
-    });
+  const handleAddScholarship = async (payload: AwardScholarshipPayload): Promise<boolean> => {
+    try {
+      const created = await awardScholarshipApi(payload);
+      setScholarships((prev) => [created, ...prev]);
+      toast.success("Bourse attribuée avec succès", {
+        description: `Bourse accordée à ${created.studentName} d'un montant de ${created.amount} €.`,
+      });
+      return true;
+    } catch (err) {
+      toast.error("Échec de l'attribution de la bourse", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  };
+
+  const handleStatusChange = async (schId: string, status: ScholarshipItem["status"]) => {
+    try {
+      const updated = await updateScholarshipStatusApi(schId, status);
+      setScholarships((prev) => prev.map((s) => (s.id === schId ? updated : s)));
+      toast.success("Statut de la bourse mis à jour", {
+        description: `Statut modifié avec succès en ${status}.`,
+      });
+    } catch (err) {
+      toast.error("Erreur de mise à jour du statut", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   const filteredScholarships = scholarships.filter((s) => {
@@ -52,7 +109,6 @@ export function ScholarshipsList() {
   });
 
   const totalAid = scholarships.filter((s) => s.status === "Active").reduce((acc, s) => acc + s.amount, 0);
-
   const activeRecipients = scholarships.filter((s) => s.status === "Active").length;
   const avgAid = Math.round(totalAid / (activeRecipients || 1));
 
@@ -80,6 +136,16 @@ export function ScholarshipsList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            className="h-9 gap-2"
+          >
+            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <AwardScholarshipDialog onAddScholarship={handleAddScholarship} />
         </div>
       </div>
@@ -161,100 +227,123 @@ export function ScholarshipsList() {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="rounded-md border-t">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[220px]">Learner / Matricule</TableHead>
-                  <TableHead>Cohort</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Justification & Decision</TableHead>
-                  <TableHead className="w-[120px] text-right">Award Amount</TableHead>
-                  <TableHead className="w-[100px]">Status</TableHead>
-                  <TableHead className="w-[80px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredScholarships.length === 0 ? (
+          {isLoading ? (
+            <div className="flex h-48 flex-col items-center justify-center gap-3 border-t">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground text-xs">Loading institutional scholarships...</p>
+            </div>
+          ) : (
+            <div className="rounded-md border-t">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                      No scholarships found matching criteria.
-                    </TableCell>
+                    <TableHead className="w-[220px]">Learner / Matricule</TableHead>
+                    <TableHead>Cohort</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Justification & Decision</TableHead>
+                    <TableHead className="w-[120px] text-right">Award Amount</TableHead>
+                    <TableHead className="w-[100px]">Status</TableHead>
+                    <TableHead className="w-[80px] text-right">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredScholarships.map((sch) => (
-                    <TableRow key={sch.id}>
-                      <TableCell>
-                        <div className="grid gap-0.5 text-xs">
-                          <span className="font-semibold text-foreground text-sm">{sch.studentName}</span>
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <span className="font-mono text-[11px]">{sch.code}</span>
-                            <span>•</span>
-                            <span className="font-mono text-[11px]">{sch.studentMatricule}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <span className="font-medium text-foreground text-xs">{sch.cohort}</span>
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge variant="secondary" className={getTypeBadgeClass(sch.type)}>
-                          {sch.type}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="grid max-w-[280px] gap-0.5 text-xs">
-                          <span className="truncate text-foreground">{sch.justification}</span>
-                          <span className="text-[11px] text-muted-foreground">By {sch.approvedBy}</span>
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-right font-bold text-emerald-600 text-sm">
-                        {sch.amount.toLocaleString()} €
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={
-                            sch.status === "Active"
-                              ? "border-emerald-600/30 bg-emerald-500/10 text-emerald-600 text-xs dark:text-emerald-400"
-                              : "border-destructive/30 bg-destructive/10 text-destructive text-xs"
-                          }
-                        >
-                          {sch.status}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-8">
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            {sch.status === "Active" && (
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleRevokeScholarship(sch.id)}
-                              >
-                                Revoke Scholarship
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                  {filteredScholarships.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                        No scholarships found matching criteria.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    filteredScholarships.map((sch) => (
+                      <TableRow key={sch.id}>
+                        <TableCell>
+                          <div className="grid gap-0.5 text-xs">
+                            <span className="font-semibold text-foreground text-sm">{sch.studentName}</span>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <span className="font-mono text-[11px]">{sch.code}</span>
+                              <span>•</span>
+                              <span className="font-mono text-[11px]">{sch.studentMatricule}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <span className="font-medium text-foreground text-xs">{sch.cohort}</span>
+                        </TableCell>
+
+                        <TableCell>
+                          <Badge variant="secondary" className={getTypeBadgeClass(sch.type)}>
+                            {sch.type}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="grid max-w-[280px] gap-0.5 text-xs">
+                            <span className="truncate text-foreground">{sch.justification}</span>
+                            <span className="text-[11px] text-muted-foreground">By {sch.approvedBy}</span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-right font-bold text-emerald-600 text-sm">
+                          {sch.amount.toLocaleString()} €
+                        </TableCell>
+
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              sch.status === "Active"
+                                ? "border-emerald-600/30 bg-emerald-500/10 text-emerald-600 text-xs dark:text-emerald-400"
+                                : sch.status === "Approved"
+                                  ? "border-sky-600/30 bg-sky-500/10 text-sky-600 text-xs dark:text-sky-400"
+                                  : "border-destructive/30 bg-destructive/10 text-destructive text-xs"
+                            }
+                          >
+                            {sch.status}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              {sch.status === "Active" ? (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => handleStatusChange(sch.id, "Revoked")}
+                                >
+                                  Revoke Scholarship
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleStatusChange(sch.id, "Active")}>
+                                  Reactivate Scholarship
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  toast.success("Scholarship Details Copied", {
+                                    description: `Beneficiary: ${sch.studentName} (${sch.amount} €)`,
+                                  });
+                                }}
+                              >
+                                Copy Reference
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

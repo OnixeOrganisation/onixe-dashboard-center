@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { BookOpen, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ interface AssignCourseDialogProps {
   instructor: InstructorItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdateCourses: (id: string, courses: string[], cohorts: string[], weeklyHours: number) => void;
+  onUpdateCourses: (id: string, courses: string[], cohorts: string[], weeklyHours: number) => Promise<boolean>;
 }
 
 const AVAILABLE_COHORTS = [
@@ -40,6 +40,7 @@ export function AssignCourseDialog({ instructor, open, onOpenChange, onUpdateCou
   const [courses, setCourses] = React.useState<string[]>([]);
   const [cohorts, setCohorts] = React.useState<string[]>([]);
   const [newCourse, setNewCourse] = React.useState("");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (instructor) {
@@ -74,14 +75,17 @@ export function AssignCourseDialog({ instructor, open, onOpenChange, onUpdateCou
     }
   };
 
-  const handleSave = () => {
-    // calculate estimated hours (e.g. 4h per course)
-    const computedHours = Math.min(courses.length * 4, instructor.maxWeeklyHours);
-    onUpdateCourses(instructor.id, courses, cohorts, computedHours);
-    toast.success("Assignments Updated", {
-      description: `Course and cohort assignments updated for ${instructor.name}.`,
-    });
-    onOpenChange(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const computedHours = Math.min(courses.length * 4, instructor.maxWeeklyHours);
+      const success = await onUpdateCourses(instructor.id, courses, cohorts, computedHours);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -166,10 +170,13 @@ export function AssignCourseDialog({ instructor, open, onOpenChange, onUpdateCou
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save Assignments</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+            Save Assignments
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

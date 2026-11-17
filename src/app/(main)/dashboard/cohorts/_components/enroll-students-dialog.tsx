@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -62,13 +62,14 @@ const candidateStudents = [
 
 interface EnrollStudentsDialogProps {
   cohort: CohortItem;
-  onEnrolled?: (count: number) => void;
+  onEnrolled?: (studentIds: string[], count: number) => Promise<boolean>;
 }
 
 export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialogProps) {
   const [open, setOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [search, setSearch] = React.useState("");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const filteredCandidates = candidateStudents.filter(
     (s) =>
@@ -81,18 +82,27 @@ export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialo
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  const handleEnroll = () => {
+  const handleEnroll = async () => {
     if (selectedIds.length === 0) {
       toast.error("Please select at least one student to enroll.");
       return;
     }
 
-    toast.success("Learners enrolled successfully", {
-      description: `${selectedIds.length} learner(s) have been assigned to ${cohort.name}.`,
-    });
-    onEnrolled?.(selectedIds.length);
-    setSelectedIds([]);
-    setOpen(false);
+    setIsSaving(true);
+    try {
+      if (onEnrolled) {
+        const success = await onEnrolled(selectedIds, selectedIds.length);
+        if (success) {
+          setSelectedIds([]);
+          setOpen(false);
+        }
+      } else {
+        setSelectedIds([]);
+        setOpen(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -117,6 +127,7 @@ export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialo
             placeholder="Search by student name or matricule..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            disabled={isSaving}
           />
 
           <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-2">
@@ -134,6 +145,7 @@ export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialo
                       id={`student-select-${student.id}`}
                       checked={isSelected}
                       onCheckedChange={() => toggleStudent(student.id)}
+                      disabled={isSaving}
                     />
                     <Avatar className="size-8">
                       <AvatarFallback className="text-xs">{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -160,10 +172,11 @@ export function EnrollStudentsDialog({ cohort, onEnrolled }: EnrollStudentsDialo
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleEnroll} disabled={selectedIds.length === 0}>
+          <Button onClick={handleEnroll} disabled={selectedIds.length === 0 || isSaving}>
+            {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
             Enroll Selected ({selectedIds.length})
           </Button>
         </DialogFooter>

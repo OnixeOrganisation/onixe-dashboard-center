@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import type { CohortItem } from "./data";
+import type { CreateCohortPayload } from "./cohorts.api";
 
 interface CreateCohortDialogProps {
-  onCohortCreated?: (cohort: Partial<CohortItem>) => void;
+  onCohortCreated?: (cohort: CreateCohortPayload) => Promise<boolean>;
 }
 
 export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const [name, setName] = React.useState("");
   const [code, setCode] = React.useState("");
   const [department, setDepartment] = React.useState("Computer Science");
@@ -35,35 +37,39 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
   const [startDate, setStartDate] = React.useState("2026-09-01");
   const [endDate, setEndDate] = React.useState("2027-06-30");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !code) {
+    if (!name.trim() || !code.trim()) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
-    const newCohort: Partial<CohortItem> = {
-      id: `coh-${Date.now()}`,
-      name,
-      code,
+    const payload: CreateCohortPayload = {
+      name: name.trim(),
+      code: code.trim(),
       department,
-      capacity: Number(capacity) || 30,
-      enrolledStudents: 0,
-      primaryRoom: room,
+      capacity: Number(capacity) || 35,
+      primaryRoom: room.trim() || "Amphi Turing",
       startDate,
       endDate,
-      attendanceRate: 100,
       status: "Starting Soon",
-      scheduleSummary: "Schedule not yet published",
     };
 
-    onCohortCreated?.(newCohort);
-    toast.success("Cohort created successfully", {
-      description: `Cohort ${name} (${code}) has been registered in the academic catalog.`,
-    });
-    setOpen(false);
-    setName("");
-    setCode("");
+    setIsSaving(true);
+    try {
+      if (onCohortCreated) {
+        const success = await onCohortCreated(payload);
+        if (success) {
+          setOpen(false);
+          setName("");
+          setCode("");
+        }
+      } else {
+        setOpen(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -92,6 +98,7 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
                   placeholder="e.g. SE-2026B"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
+                  disabled={isSaving}
                   required
                 />
               </div>
@@ -103,6 +110,7 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
                   placeholder="e.g. 35"
                   value={capacity}
                   onChange={(e) => setCapacity(e.target.value)}
+                  disabled={isSaving}
                   required
                 />
               </div>
@@ -115,6 +123,7 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
                 placeholder="e.g. Cybersecurity & Cloud Architecture 2026"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={isSaving}
                 required
               />
             </div>
@@ -122,7 +131,7 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="cohort-dept">Department</Label>
-                <Select value={department} onValueChange={setDepartment}>
+                <Select value={department} onValueChange={setDepartment} disabled={isSaving}>
                   <SelectTrigger id="cohort-dept">
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
@@ -144,6 +153,7 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
                   placeholder="e.g. Lab Cyber 01"
                   value={room}
                   onChange={(e) => setRoom(e.target.value)}
+                  disabled={isSaving}
                 />
               </div>
             </div>
@@ -151,20 +161,35 @@ export function CreateCohortDialog({ onCohortCreated }: CreateCohortDialogProps)
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="cohort-start">Start Date</Label>
-                <Input id="cohort-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <Input
+                  id="cohort-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  disabled={isSaving}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cohort-end">End Date</Label>
-                <Input id="cohort-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <Input
+                  id="cohort-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  disabled={isSaving}
+                />
               </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Create Cohort</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Create Cohort
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

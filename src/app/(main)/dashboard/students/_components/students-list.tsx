@@ -2,7 +2,19 @@
 
 import * as React from "react";
 
-import { Download, Eye, GraduationCap, MoreHorizontal, Printer, Search, UserCheck, Users, UserX } from "lucide-react";
+import {
+  Download,
+  Eye,
+  GraduationCap,
+  Loader2,
+  MoreHorizontal,
+  Printer,
+  RefreshCw,
+  Search,
+  UserCheck,
+  Users,
+  UserX,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,8 +38,9 @@ import { printHtmlDocument } from "@/lib/export-engine/print-document";
 import { generateSchoolCertificateHtml } from "@/lib/export-engine/templates/school-certificate";
 
 import { CreateStudentDialog } from "./create-student-dialog";
-import { mockStudents, type StudentItem } from "./data";
+import type { StudentItem } from "./data";
 import { StudentDetailsDialog } from "./student-details-dialog";
+import { type CreateStudentPayload, createStudentApi, fetchStudents, updateStudentStatusApi } from "./students.api";
 
 function getStudentBadgeClass(status: StudentItem["status"]) {
   if (status === "Active") {
@@ -43,19 +56,72 @@ function getStudentBadgeClass(status: StudentItem["status"]) {
 }
 
 export function StudentsList() {
-  const [students, setStudents] = React.useState<StudentItem[]>(mockStudents);
+  const [students, setStudents] = React.useState<StudentItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
   const [search, setSearch] = React.useState("");
   const [selectedDept, setSelectedDept] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [selectedStudent, setSelectedStudent] = React.useState<StudentItem | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
 
-  const handleStudentCreated = (newStudent: StudentItem) => {
-    setStudents((prev) => [newStudent, ...prev]);
+  const loadData = React.useCallback(async (showToast = false) => {
+    try {
+      const data = await fetchStudents();
+      setStudents(Array.isArray(data) ? data : []);
+      if (showToast) {
+        toast.success("Apprenants synchronisés", {
+          description: "Dossiers étudiants chargés en direct depuis le serveur NestJS.",
+        });
+      }
+    } catch (err) {
+      toast.error("Impossible de charger les étudiants", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadData(false);
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(true);
   };
 
-  const handleStatusChange = (id: string, newStatus: StudentItem["status"]) => {
-    setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s)));
+  const handleStudentCreated = async (payload: CreateStudentPayload): Promise<boolean> => {
+    try {
+      const newStudent = await createStudentApi(payload);
+      setStudents((prev) => [newStudent, ...prev]);
+      toast.success("Étudiant inscrit avec succès", {
+        description: `${newStudent.name} inscrit avec le matricule ${newStudent.matricule}.`,
+      });
+      return true;
+    } catch (err) {
+      toast.error("Échec de l'inscription de l'étudiant", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: StudentItem["status"]) => {
+    try {
+      const updated = await updateStudentStatusApi(id, newStatus);
+      setStudents((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      toast.success("Statut mis à jour", {
+        description: `Statut de l'étudiant modifié en ${newStatus}.`,
+      });
+    } catch (err) {
+      toast.error("Erreur lors de la mise à jour du statut", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   const handleViewDetails = (student: StudentItem) => {
@@ -114,112 +180,106 @@ export function StudentsList() {
       s.cohort.toLowerCase().includes(search.toLowerCase());
 
     const matchesDept = selectedDept === "all" || s.department === selectedDept;
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && s.status === "Active") ||
-      (statusFilter === "graduated" && s.status === "Graduated") ||
-      (statusFilter === "suspended" && s.status === "Suspended");
+    const matchesStatus = statusFilter === "all" || s.status === statusFilter;
 
     return matchesSearch && matchesDept && matchesStatus;
   });
 
-  const activeCount = students.filter((s) => s.status === "Active").length;
-  const avgAttendance = (students.reduce((acc, s) => acc + s.attendanceRate, 0) / students.length).toFixed(1);
+  const activeStudentsCount = students.filter((s) => s.status === "Active").length;
+  const graduatedCount = students.filter((s) => s.status === "Graduated").length;
+  const pendingCount = students.filter((s) => s.status === "Pending Registration").length;
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl">
-            Students & Learners Directory
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Academic records, cohorts enrollment, attendance telemetry and student transcripts.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportRoster}>
-            <Download className="size-4" />
-            Export Roster
-          </Button>
-          <CreateStudentDialog onStudentCreated={handleStudentCreated} />
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="font-medium text-muted-foreground text-sm">Total Learners</CardTitle>
-            <Users className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="font-bold text-2xl">{students.length}</div>
-            <p className="text-muted-foreground text-xs">{activeCount} active in current cohorts</p>
-          </CardContent>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Users className="size-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-2xl">{students.length}</div>
+              <div className="text-muted-foreground text-xs">Total Registered Students</div>
+            </div>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="font-medium text-muted-foreground text-sm">Avg. Attendance</CardTitle>
-            <UserCheck className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="font-bold text-2xl">{avgAttendance}%</div>
-            <p className="text-muted-foreground text-xs">Monitored across 6 active cohorts</p>
-          </CardContent>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
+              <UserCheck className="size-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-2xl">{activeStudentsCount}</div>
+              <div className="text-muted-foreground text-xs">Active Learners Enrolled</div>
+            </div>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="font-medium text-muted-foreground text-sm">Graduated Alumni</CardTitle>
-            <GraduationCap className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="font-bold text-2xl">{students.filter((s) => s.status === "Graduated").length}</div>
-            <p className="text-muted-foreground text-xs">100% diploma verification rate</p>
-          </CardContent>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <GraduationCap className="size-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-2xl">{graduatedCount}</div>
+              <div className="text-muted-foreground text-xs">Graduated Alumni</div>
+            </div>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="font-medium text-muted-foreground text-sm">At-Risk / Suspended</CardTitle>
-            <UserX className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="font-bold text-2xl">{students.filter((s) => s.status === "Suspended").length}</div>
-            <p className="text-muted-foreground text-xs">Requires academic intervention</p>
-          </CardContent>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+              <UserX className="size-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-2xl">{pendingCount}</div>
+              <div className="text-muted-foreground text-xs">Pending Registrations</div>
+            </div>
+          </div>
         </Card>
       </div>
 
-      {/* Filters & Table Card */}
+      {/* Main Content Card */}
       <Card>
-        <CardHeader className="border-b">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-              <TabsList>
-                <TabsTrigger value="all">All Students ({students.length})</TabsTrigger>
-                <TabsTrigger value="active">Active ({activeCount})</TabsTrigger>
-                <TabsTrigger value="graduated">Graduated</TabsTrigger>
-                <TabsTrigger value="suspended">Suspended</TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-lg">Students Directory</CardTitle>
+            <p className="text-muted-foreground text-xs">
+              Manage student registrations, cohort enrollments, grades and academic certificates.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
+              <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportRoster} className="gap-2">
+              <Download className="size-4" />
+              Export CSV
+            </Button>
+            <CreateStudentDialog onStudentCreated={handleStudentCreated} />
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {/* Filters Bar */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, ID, email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search student, matricule, cohort..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-8 pl-8 text-xs"
-                />
-              </div>
-
               <Select value={selectedDept} onValueChange={setSelectedDept}>
-                <SelectTrigger className="h-8 w-[180px] text-xs">
+                <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,101 +292,148 @@ export function StudentsList() {
                   <SelectItem value="Design & UX">Design & UX</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+                <TabsList className="h-9">
+                  <TabsTrigger value="all" className="text-xs">
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger value="Active" className="text-xs">
+                    Active
+                  </TabsTrigger>
+                  <TabsTrigger value="Pending Registration" className="text-xs">
+                    Pending
+                  </TabsTrigger>
+                  <TabsTrigger value="Graduated" className="text-xs">
+                    Graduated
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
           </div>
-        </CardHeader>
 
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Matricule</TableHead>
-                <TableHead>Cohort / Promotion</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Attendance</TableHead>
-                <TableHead>Grade Avg.</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStudents.map((student) => (
-                <TableRow key={student.id} className="hover:bg-muted/30">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="size-8">
-                        <AvatarFallback className="text-xs">{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground text-sm">{student.name}</span>
-                        <span className="text-muted-foreground text-xs">{student.email}</span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-muted-foreground text-xs">{student.matricule}</TableCell>
-                  <TableCell className="font-medium text-foreground text-xs">{student.cohort}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{student.department}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 font-medium text-xs">
-                      <span className={student.attendanceRate < 80 ? "text-destructive" : "text-foreground"}>
-                        {student.attendanceRate}%
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-semibold text-xs">
-                    {student.gradeAverage > 0 ? `${student.gradeAverage} / 20` : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={getStudentBadgeClass(student.status)}>
-                      {student.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="size-8" onClick={() => handleViewDetails(student)}>
-                        <Eye className="size-4" />
-                        <span className="sr-only">View Student</span>
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-8">
-                            <MoreHorizontal className="size-4" />
-                            <span className="sr-only">Menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Student Options</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleViewDetails(student)}>
-                            View Full Transcript
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handlePrintCertificate(student)}>
-                            <Printer className="mr-2 size-3.5" />
-                            Print School Certificate (PDF)
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast.info(`Transfer dialog opened for ${student.name}`)}>
-                            Change Cohort
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast.success(`Transcript sent to ${student.email}`)}>
-                            Email Transcript
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() =>
-                              handleStatusChange(student.id, student.status === "Active" ? "Suspended" : "Active")
-                            }
-                          >
-                            {student.status === "Active" ? "Suspend Student" : "Reactivate"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
+          {/* Table */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Matricule</TableHead>
+                  <TableHead>Cohort</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Attendance</TableHead>
+                  <TableHead>Grade Avg.</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center">
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="size-4 animate-spin" />
+                        Loading student directory...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredStudents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-sm">
+                      No students found matching your criteria.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <TableRow key={student.id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-8">
+                            <AvatarFallback className="text-xs">
+                              {student.name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground text-sm">{student.name}</span>
+                            <span className="text-muted-foreground text-xs">{student.email}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-muted-foreground text-xs">{student.matricule}</TableCell>
+                      <TableCell className="font-medium text-foreground text-xs">{student.cohort}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{student.department}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 font-medium text-xs">
+                          <span className={student.attendanceRate < 80 ? "text-destructive" : "text-foreground"}>
+                            {student.attendanceRate}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-semibold text-xs">
+                        {student.gradeAverage > 0 ? `${student.gradeAverage} / 20` : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={getStudentBadgeClass(student.status)}>
+                          {student.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            onClick={() => handleViewDetails(student)}
+                          >
+                            <Eye className="size-4" />
+                            <span className="sr-only">View Student</span>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal className="size-4" />
+                                <span className="sr-only">Menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Student Options</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleViewDetails(student)}>
+                                View Full Transcript
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePrintCertificate(student)}>
+                                <Printer className="mr-2 size-3.5" />
+                                Print School Certificate (PDF)
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => toast.info(`Transfer dialog opened for ${student.name}`)}
+                              >
+                                Change Cohort
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toast.success(`Transcript sent to ${student.email}`)}>
+                                Email Transcript
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() =>
+                                  void handleStatusChange(
+                                    student.id,
+                                    student.status === "Active" ? "Suspended" : "Active",
+                                  )
+                                }
+                              >
+                                {student.status === "Active" ? "Suspend Student" : "Reactivate"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -335,7 +442,9 @@ export function StudentsList() {
         student={selectedStudent}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
-        onStatusChange={handleStatusChange}
+        onStatusChange={(id, status) => {
+          void handleStatusChange(id, status);
+        }}
       />
     </div>
   );

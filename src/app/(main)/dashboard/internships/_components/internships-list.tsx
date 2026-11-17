@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Briefcase, Building, Calendar, CheckCircle2, MoreHorizontal, Search } from "lucide-react";
+import { Briefcase, Building, Calendar, CheckCircle2, Loader2, MoreHorizontal, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -20,25 +21,99 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { CreateInternshipDialog } from "./create-internship-dialog";
-import { INITIAL_INTERNSHIPS, type InternshipItem } from "./data";
+import type { InternshipItem } from "./data";
+import {
+  type CreateInternshipPayload,
+  createInternshipApi,
+  fetchInternships,
+  scheduleDefenseApi,
+  updateInternshipStatusApi,
+} from "./internships.api";
 import { ScheduleDefenseDialog } from "./schedule-defense-dialog";
 
 export function InternshipsList() {
-  const [internships, setInternships] = React.useState<InternshipItem[]>(INITIAL_INTERNSHIPS);
+  const [internships, setInternships] = React.useState<InternshipItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<string>("all");
 
   const [selectedInternship, setSelectedInternship] = React.useState<InternshipItem | null>(null);
   const [defenseDialogOpen, setDefenseDialogOpen] = React.useState(false);
 
-  const handleAddInternship = (newIntern: InternshipItem) => {
-    setInternships([newIntern, ...internships]);
+  const loadData = React.useCallback(async (showToast = false) => {
+    try {
+      const data = await fetchInternships();
+      setInternships(Array.isArray(data) ? data : []);
+      if (showToast) {
+        toast.success("Stages & PFE synchronisés", {
+          description: "Registres des conventions de stage et projets de fin d'études chargés depuis NestJS.",
+        });
+      }
+    } catch (err) {
+      toast.error("Impossible de charger les stages", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadData(false);
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(true);
   };
 
-  const handleUpdateDefense = (id: string, date: string, room: string) => {
-    setInternships((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, defenseDate: date, defenseRoom: room, status: "Defense Scheduled" } : i)),
-    );
+  const handleAddInternship = async (payload: CreateInternshipPayload): Promise<boolean> => {
+    try {
+      const created = await createInternshipApi(payload);
+      setInternships((prev) => [created, ...prev]);
+      toast.success("Convention enregistrée avec succès", {
+        description: `Stage de ${created.studentName} chez ${created.companyName} enregistré en base.`,
+      });
+      return true;
+    } catch (err) {
+      toast.error("Échec de l'enregistrement du stage", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  };
+
+  const handleUpdateDefense = async (id: string, date: string, room: string): Promise<boolean> => {
+    try {
+      const updated = await scheduleDefenseApi(id, { defenseDate: date, defenseRoom: room });
+      setInternships((prev) => prev.map((i) => (i.id === id ? updated : i)));
+      toast.success("Soutenance programmée", {
+        description: `Soutenance planifiée pour le ${date} en salle ${room}.`,
+      });
+      return true;
+    } catch (err) {
+      toast.error("Échec de la programmation de la soutenance", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  };
+
+  const handleValidateDefense = async (id: string) => {
+    try {
+      const updated = await updateInternshipStatusApi(id, "Validated", 18.5);
+      setInternships((prev) => prev.map((i) => (i.id === id ? updated : i)));
+      toast.success("Soutenance validée", {
+        description: "Note de soutenance 18.5/20 enregistrée avec succès en base de données.",
+      });
+    } catch (err) {
+      toast.error("Erreur de validation de la soutenance", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   const filteredInternships = internships.filter((i) => {
@@ -80,6 +155,16 @@ export function InternshipsList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            className="h-9 gap-2"
+          >
+            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <CreateInternshipDialog onAddInternship={handleAddInternship} />
         </div>
       </div>
@@ -158,117 +243,130 @@ export function InternshipsList() {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="rounded-md border-t">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[240px]">Learner / Contract</TableHead>
-                  <TableHead>Hosting Enterprise</TableHead>
-                  <TableHead>PFE / Thesis Topic</TableHead>
-                  <TableHead>Tutors & Defense</TableHead>
-                  <TableHead className="w-[130px]">Status</TableHead>
-                  <TableHead className="w-[80px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInternships.length === 0 ? (
+          {isLoading ? (
+            <div className="flex h-48 flex-col items-center justify-center gap-3 border-t">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground text-xs">Loading internships and defense schedules...</p>
+            </div>
+          ) : (
+            <div className="rounded-md border-t">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                      No contracts found matching criteria.
-                    </TableCell>
+                    <TableHead className="w-[240px]">Learner / Contract</TableHead>
+                    <TableHead>Hosting Enterprise</TableHead>
+                    <TableHead>PFE / Thesis Topic</TableHead>
+                    <TableHead>Tutors & Defense</TableHead>
+                    <TableHead className="w-[130px]">Status</TableHead>
+                    <TableHead className="w-[80px] text-right">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredInternships.map((intern) => (
-                    <TableRow key={intern.id}>
-                      <TableCell>
-                        <div className="grid gap-0.5 text-xs">
-                          <span className="font-semibold text-foreground text-sm">{intern.studentName}</span>
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <span className="font-mono text-[11px]">{intern.code}</span>
-                            <span>•</span>
-                            <span className="font-mono text-[11px]">{intern.studentMatricule}</span>
-                          </div>
-                          <Badge variant="outline" className="mt-0.5 w-fit text-[10px]">
-                            {intern.type}
-                          </Badge>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="grid gap-0.5 text-xs">
-                          <span className="font-semibold text-foreground">{intern.companyName}</span>
-                          <span className="text-muted-foreground">{intern.companyAddress}</span>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <p className="line-clamp-2 max-w-[280px] text-muted-foreground text-xs">{intern.pfeTopic}</p>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="grid gap-0.5 text-xs">
-                          <span>
-                            Academic: <strong className="text-foreground">{intern.academicSupervisor}</strong>
-                          </span>
-                          <span>
-                            Mentor: <strong className="text-foreground">{intern.companyTutor}</strong>
-                          </span>
-                          {intern.defenseDate && (
-                            <span className="pt-0.5 font-medium text-[11px] text-purple-600">
-                              Defense: {intern.defenseDate} ({intern.defenseRoom})
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="grid gap-1">
-                          <Badge variant="secondary" className={getStatusBadgeClass(intern.status)}>
-                            {intern.status}
-                          </Badge>
-                          {intern.juryScore && (
-                            <span className="font-bold text-[11px] text-emerald-600">
-                              Jury Score: {intern.juryScore} / 20
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-8">
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedInternship(intern);
-                                setDefenseDialogOpen(true);
-                              }}
-                            >
-                              Schedule Thesis Defense
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                toast.success("Contract Document Exported", {
-                                  description: `Official tri-partite convention for ${intern.studentName} generated.`,
-                                });
-                              }}
-                            >
-                              Export Tri-partite Convention
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                  {filteredInternships.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                        No contracts found matching criteria.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    filteredInternships.map((intern) => (
+                      <TableRow key={intern.id}>
+                        <TableCell>
+                          <div className="grid gap-0.5 text-xs">
+                            <span className="font-semibold text-foreground text-sm">{intern.studentName}</span>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <span className="font-mono text-[11px]">{intern.code}</span>
+                              <span>•</span>
+                              <span className="font-mono text-[11px]">{intern.studentMatricule}</span>
+                            </div>
+                            <Badge variant="outline" className="mt-0.5 w-fit text-[10px]">
+                              {intern.type}
+                            </Badge>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="grid gap-0.5 text-xs">
+                            <span className="font-semibold text-foreground">{intern.companyName}</span>
+                            <span className="text-muted-foreground">{intern.companyAddress}</span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <p className="line-clamp-2 max-w-[280px] text-muted-foreground text-xs">{intern.pfeTopic}</p>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="grid gap-0.5 text-xs">
+                            <span>
+                              Academic: <strong className="text-foreground">{intern.academicSupervisor}</strong>
+                            </span>
+                            <span>
+                              Mentor: <strong className="text-foreground">{intern.companyTutor}</strong>
+                            </span>
+                            {intern.defenseDate && (
+                              <span className="pt-0.5 font-medium text-[11px] text-purple-600">
+                                Defense: {intern.defenseDate} ({intern.defenseRoom})
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="grid gap-1">
+                            <Badge variant="secondary" className={getStatusBadgeClass(intern.status)}>
+                              {intern.status}
+                            </Badge>
+                            {intern.juryScore && (
+                              <span className="font-bold text-[11px] text-emerald-600">
+                                Jury Score: {intern.juryScore} / 20
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedInternship(intern);
+                                  setDefenseDialogOpen(true);
+                                }}
+                              >
+                                Schedule Thesis Defense
+                              </DropdownMenuItem>
+                              {intern.status === "Defense Scheduled" && (
+                                <DropdownMenuItem onClick={() => handleValidateDefense(intern.id)}>
+                                  Validate Jury Defense
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  toast.success("Contract Document Exported", {
+                                    description: `Official tri-partite convention for ${intern.studentName} generated.`,
+                                  });
+                                }}
+                              >
+                                Export Tri-partite Convention
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

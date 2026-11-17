@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { DoorOpen } from "lucide-react";
+import { DoorOpen, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { AllocateClassroomPayload } from "./campuses.api";
 import { type CampusItem, type ClassroomItem, ROOM_TYPES } from "./data";
 
 interface CreateClassroomDialogProps {
   campus: CampusItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddClassroom: (campusId: string, room: ClassroomItem) => void;
+  onAddClassroom: (campusId: string, payload: AllocateClassroomPayload) => Promise<boolean>;
 }
 
 export function CreateClassroomDialog({ campus, open, onOpenChange, onAddClassroom }: CreateClassroomDialogProps) {
@@ -34,10 +35,11 @@ export function CreateClassroomDialog({ campus, open, onOpenChange, onAddClassro
   const [capacity, setCapacity] = React.useState("30");
   const [floor, setFloor] = React.useState("1st Floor");
   const [equipmentInput, setEquipmentInput] = React.useState("");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   if (!campus) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!code.trim() || !name.trim()) {
@@ -50,27 +52,34 @@ export function CreateClassroomDialog({ campus, open, onOpenChange, onAddClassro
       .map((item) => item.trim())
       .filter(Boolean);
 
-    const newRoom: ClassroomItem = {
-      id: `room-${Date.now()}`,
+    const payload: AllocateClassroomPayload = {
       code: code.trim().toUpperCase(),
       name: name.trim(),
       type,
       capacity: Number.parseInt(capacity, 10) || 30,
-      campusId: campus.id,
       floor: floor.trim() || "Ground Floor",
       equipment: equip.length > 0 ? equip : ["Projector", "Wi-Fi 6", "Whiteboard"],
-      status: "Available",
     };
 
-    onAddClassroom(campus.id, newRoom);
-    toast.success("Room Configured", {
-      description: `${newRoom.name} (${newRoom.code}) has been added to ${campus.name}.`,
-    });
-
-    setCode("");
-    setName("");
-    setEquipmentInput("");
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const success = await onAddClassroom(campus.id, payload);
+      if (success) {
+        toast.success("Room Configured", {
+          description: `${payload.name} (${payload.code}) has been added to ${campus.name}.`,
+        });
+        setCode("");
+        setName("");
+        setEquipmentInput("");
+        onOpenChange(false);
+      }
+    } catch {
+      toast.error("Error", {
+        description: "Failed to allocate room. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -162,10 +171,13 @@ export function CreateClassroomDialog({ campus, open, onOpenChange, onAddClassro
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Add Learning Space</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSaving ? "Adding..." : "Add Learning Space"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

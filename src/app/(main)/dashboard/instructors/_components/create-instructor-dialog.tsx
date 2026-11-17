@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { DEPARTMENTS, INSTRUCTOR_STATUSES, type InstructorItem } from "./data";
+import type { CreateInstructorPayload } from "./instructors.api";
 
 interface CreateInstructorDialogProps {
-  onAddInstructor: (instructor: InstructorItem) => void;
+  onAddInstructor: (payload: CreateInstructorPayload) => Promise<boolean>;
 }
 
 export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDialogProps) {
@@ -35,8 +36,9 @@ export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDial
   const [status, setStatus] = React.useState<InstructorItem["status"]>("Full-Time");
   const [maxWeeklyHours, setMaxWeeklyHours] = React.useState("20");
   const [initialCourse, setInitialCourse] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim() || !email.trim()) {
@@ -46,36 +48,31 @@ export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDial
       return;
     }
 
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const newInstructor: InstructorItem = {
-      id: `inst-${Date.now()}`,
-      matricule: `FAC-2024-${randomNum}`,
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim() || "+33 6 00 00 00 00",
-      department,
-      specialization: specialization.trim() || "Computer Science",
-      status,
-      weeklyHours: initialCourse ? 4 : 0,
-      maxWeeklyHours: Number.parseInt(maxWeeklyHours, 10) || 20,
-      assignedCourses: initialCourse ? [initialCourse.trim()] : [],
-      assignedCohorts: [],
-      rating: 5.0,
-      totalStudentsTaught: 0,
-      joinedDate: new Date().toISOString().split("T")[0],
-    };
+    setIsSubmitting(true);
+    try {
+      const payload: CreateInstructorPayload = {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || "+33 6 00 00 00 00",
+        department,
+        specialization: specialization.trim() || "Computer Science",
+        status,
+        maxWeeklyHours: Number.parseInt(maxWeeklyHours, 10) || 20,
+        initialCourse: initialCourse.trim() || undefined,
+      };
 
-    onAddInstructor(newInstructor);
-    toast.success("Instructor Added", {
-      description: `${newInstructor.name} has been appointed to ${newInstructor.department}.`,
-    });
-
-    setName("");
-    setEmail("");
-    setPhone("");
-    setSpecialization("");
-    setInitialCourse("");
-    setOpen(false);
+      const success = await onAddInstructor(payload);
+      if (success) {
+        setName("");
+        setEmail("");
+        setPhone("");
+        setSpecialization("");
+        setInitialCourse("");
+        setOpen(false);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -198,10 +195,13 @@ export function CreateInstructorDialog({ onAddInstructor }: CreateInstructorDial
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Save Instructor</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Save Instructor
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

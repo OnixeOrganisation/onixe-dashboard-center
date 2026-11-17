@@ -2,7 +2,19 @@
 
 import * as React from "react";
 
-import { Building2, DoorOpen, Layers, MapPin, MoreHorizontal, Plus, Search, Users } from "lucide-react";
+import {
+  Building2,
+  DoorOpen,
+  Layers,
+  Loader2,
+  MapPin,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Search,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,38 +24,105 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import {
+  type AllocateClassroomPayload,
+  allocateClassroomApi,
+  type CreateCampusPayload,
+  createCampusApi,
+  fetchCampuses,
+  updateClassroomStatusApi,
+} from "./campuses.api";
 import { CreateCampusDialog } from "./create-campus-dialog";
 import { CreateClassroomDialog } from "./create-classroom-dialog";
-import { type CampusItem, type ClassroomItem, INITIAL_CAMPUSES } from "./data";
+import type { CampusItem, ClassroomItem } from "./data";
 
 export function CampusesList() {
-  const [campuses, setCampuses] = React.useState<CampusItem[]>(INITIAL_CAMPUSES);
+  const [campuses, setCampuses] = React.useState<CampusItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCampus, setSelectedCampus] = React.useState<CampusItem | null>(null);
   const [roomDialogOpen, setRoomDialogOpen] = React.useState(false);
 
-  const handleAddCampus = (newCampus: CampusItem) => {
-    setCampuses([newCampus, ...campuses]);
+  const loadData = React.useCallback(async (showToast = false) => {
+    try {
+      const data = await fetchCampuses();
+      setCampuses(Array.isArray(data) ? data : []);
+      if (showToast) {
+        toast.success("Campuses synchronisés", {
+          description: "Données des campus et salles récupérées en direct depuis le serveur NestJS.",
+        });
+      }
+    } catch (err) {
+      toast.error("Impossible de charger les campus", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadData(false);
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(true);
   };
 
-  const handleAddClassroom = (campusId: string, newRoom: ClassroomItem) => {
-    setCampuses((prev) =>
-      prev.map((c) =>
-        c.id === campusId
-          ? {
-              ...c,
-              classrooms: [...c.classrooms, newRoom],
-              classroomsCount: c.classrooms.length + 1,
-              totalCapacity: c.totalCapacity + newRoom.capacity,
-            }
-          : c,
-      ),
-    );
+  const handleAddCampus = async (payload: CreateCampusPayload): Promise<boolean> => {
+    try {
+      const created = await createCampusApi(payload);
+      setCampuses((prev) => [created, ...prev]);
+      toast.success("Campus créé avec succès", {
+        description: `${created.name} a été enregistré en base de données.`,
+      });
+      return true;
+    } catch (err) {
+      toast.error("Échec de création du campus", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  };
+
+  const handleAddClassroom = async (campusId: string, payload: AllocateClassroomPayload): Promise<boolean> => {
+    try {
+      const updatedCampus = await allocateClassroomApi(campusId, payload);
+      setCampuses((prev) => prev.map((c) => (c.id === campusId ? updatedCampus : c)));
+      toast.success("Salle allouée avec succès", {
+        description: `${payload.name} a été enregistrée en base de données.`,
+      });
+      return true;
+    } catch (err) {
+      toast.error("Échec de l'allocation de salle", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  };
+
+  const handleClassroomStatusChange = async (campusId: string, roomId: string, status: ClassroomItem["status"]) => {
+    try {
+      const updatedCampus = await updateClassroomStatusApi(campusId, roomId, status);
+      setCampuses((prev) => prev.map((c) => (c.id === campusId ? updatedCampus : c)));
+      toast.success("Statut de la salle mis à jour", {
+        description: `Statut modifié avec succès en ${status}.`,
+      });
+    } catch (err) {
+      toast.error("Erreur de mise à jour du statut", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   const allClassrooms = React.useMemo(() => {
@@ -96,6 +175,16 @@ export function CampusesList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            className="h-9 gap-2"
+          >
+            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <CreateCampusDialog onAddCampus={handleAddCampus} />
         </div>
       </div>
@@ -168,170 +257,234 @@ export function CampusesList() {
           </div>
         </div>
 
-        {/* Campuses View */}
-        <TabsContent value="campuses" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredCampuses.map((campus) => (
-              <Card key={campus.id} className="flex flex-col justify-between">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-bold font-mono text-xs">
-                          {campus.code}
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          {campus.type}
-                        </Badge>
-                      </div>
-                      <CardTitle className="pt-1 text-lg">{campus.name}</CardTitle>
-                    </div>
+        {/* Loading state */}
+        {isLoading ? (
+          <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <p className="text-muted-foreground text-xs">Loading campus infrastructure catalogue...</p>
+          </div>
+        ) : (
+          <>
+            {/* Campuses View */}
+            <TabsContent value="campuses" className="space-y-4">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredCampuses.map((campus) => (
+                  <Card key={campus.id} className="flex flex-col justify-between">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-bold font-mono text-xs">
+                              {campus.code}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {campus.type}
+                            </Badge>
+                          </div>
+                          <CardTitle className="pt-1 text-lg">{campus.name}</CardTitle>
+                        </div>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Campus Actions</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedCampus(campus);
-                            setRoomDialogOpen(true);
-                          }}
-                        >
-                          Add Classroom / Lab
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
-                    <MapPin className="size-3.5 text-muted-foreground" />
-                    {campus.address}, {campus.city} ({campus.country})
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Campus Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedCampus(campus);
+                                setRoomDialogOpen(true);
+                              }}
+                            >
+                              Add Classroom / Lab
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
+                        <MapPin className="size-3.5 text-muted-foreground" />
+                        {campus.address}, {campus.city} ({campus.country})
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="space-y-4 pb-4">
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="rounded-md border bg-muted/20 p-2">
+                          <div className="text-[11px] text-muted-foreground">Classrooms</div>
+                          <div className="mt-0.5 font-bold text-base">{campus.classroomsCount}</div>
+                        </div>
+                        <div className="rounded-md border bg-muted/20 p-2">
+                          <div className="text-[11px] text-muted-foreground">Capacity</div>
+                          <div className="mt-0.5 font-bold text-base">{campus.totalCapacity}</div>
+                        </div>
+                        <div className="rounded-md border bg-muted/20 p-2">
+                          <div className="text-[11px] text-muted-foreground">Cohorts</div>
+                          <div className="mt-0.5 font-bold text-base">{campus.activeCohortsCount}</div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 border-t pt-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-foreground">Learning Spaces</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 gap-1 px-2 text-[11px]"
+                            onClick={() => {
+                              setSelectedCampus(campus);
+                              setRoomDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="size-3" />
+                            Add Room
+                          </Button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {campus.classrooms.slice(0, 3).map((r) => (
+                            <div
+                              key={r.id}
+                              className="flex items-center justify-between rounded-md border p-2 text-xs transition-colors hover:bg-muted/30"
+                            >
+                              <div className="grid gap-0.5">
+                                <span className="font-medium text-foreground">{r.name}</span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {r.type} • {r.capacity} seats • {r.floor}
+                                </span>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-6 p-0 hover:bg-transparent">
+                                    <Badge
+                                      variant="secondary"
+                                      className={`cursor-pointer text-[10px] ${getStatusBadgeClass(r.status)}`}
+                                    >
+                                      {r.status}
+                                    </Badge>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                                  <DropdownMenuItem
+                                    onClick={() => handleClassroomStatusChange(campus.id, r.id, "Available")}
+                                  >
+                                    Available
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleClassroomStatusChange(campus.id, r.id, "In Session")}
+                                  >
+                                    In Session
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleClassroomStatusChange(campus.id, r.id, "Maintenance")}
+                                  >
+                                    Maintenance
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ))}
+                          {campus.classrooms.length > 3 && (
+                            <div className="pt-1 text-center text-[11px] text-muted-foreground">
+                              +{campus.classrooms.length - 3} more learning spaces
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            {/* Classrooms Inventory Table View */}
+            <TabsContent value="classrooms">
+              <Card>
+                <CardHeader className="p-4 pb-2">
+                  <CardTitle className="text-base">Rooms & Computing Laboratories</CardTitle>
+                  <CardDescription className="text-xs">
+                    Comprehensive inventory of amphitheatres, GPU machine learning labs, and lecture spaces.
                   </CardDescription>
                 </CardHeader>
-
-                <CardContent className="space-y-4 pb-4">
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="rounded-md border bg-muted/20 p-2">
-                      <div className="text-[11px] text-muted-foreground">Classrooms</div>
-                      <div className="mt-0.5 font-bold text-base">{campus.classroomsCount}</div>
-                    </div>
-                    <div className="rounded-md border bg-muted/20 p-2">
-                      <div className="text-[11px] text-muted-foreground">Capacity</div>
-                      <div className="mt-0.5 font-bold text-base">{campus.totalCapacity}</div>
-                    </div>
-                    <div className="rounded-md border bg-muted/20 p-2">
-                      <div className="text-[11px] text-muted-foreground">Cohorts</div>
-                      <div className="mt-0.5 font-bold text-base">{campus.activeCohortsCount}</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 border-t pt-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-foreground">Learning Spaces</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 gap-1 px-2 text-[11px]"
-                        onClick={() => {
-                          setSelectedCampus(campus);
-                          setRoomDialogOpen(true);
-                        }}
+                <CardContent className="p-0">
+                  <div className="divide-y border-t">
+                    {filteredClassrooms.map((room) => (
+                      <div
+                        key={room.id}
+                        className="flex flex-col gap-3 p-4 text-xs sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <Plus className="size-3" />
-                        Add Room
-                      </Button>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {campus.classrooms.slice(0, 3).map((r) => (
-                        <div
-                          key={r.id}
-                          className="flex items-center justify-between rounded-md border p-2 text-xs transition-colors hover:bg-muted/30"
-                        >
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/40 font-bold font-mono text-xs">
+                            {room.code.slice(0, 4)}
+                          </div>
                           <div className="grid gap-0.5">
-                            <span className="font-medium text-foreground">{r.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground text-sm">{room.name}</span>
+                              <Badge variant="outline" className="font-mono text-[10px]">
+                                {room.code}
+                              </Badge>
+                            </div>
                             <span className="text-[11px] text-muted-foreground">
-                              {r.type} • {r.capacity} seats • {r.floor}
+                              {room.campusName} • {room.floor}
                             </span>
                           </div>
-                          <Badge variant="secondary" className={`text-[10px] ${getStatusBadgeClass(r.status)}`}>
-                            {r.status}
-                          </Badge>
                         </div>
-                      ))}
-                      {campus.classrooms.length > 3 && (
-                        <div className="pt-1 text-center text-[11px] text-muted-foreground">
-                          +{campus.classrooms.length - 3} more learning spaces
+
+                        <div className="flex flex-wrap items-center gap-4 sm:justify-end">
+                          <div className="text-right">
+                            <div className="font-semibold text-foreground">{room.capacity} seats</div>
+                            <div className="text-[11px] text-muted-foreground">{room.type}</div>
+                          </div>
+
+                          <div className="flex max-w-[220px] flex-wrap gap-1">
+                            {room.equipment.slice(0, 2).map((eq) => (
+                              <Badge key={eq} variant="secondary" className="py-0 text-[10px]">
+                                {eq}
+                              </Badge>
+                            ))}
+                          </div>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-7 px-2">
+                                <Badge
+                                  variant="secondary"
+                                  className={`cursor-pointer ${getStatusBadgeClass(room.status)}`}
+                                >
+                                  {room.status}
+                                </Badge>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => handleClassroomStatusChange(room.campusId, room.id, "Available")}
+                              >
+                                Available
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleClassroomStatusChange(room.campusId, room.id, "In Session")}
+                              >
+                                In Session
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleClassroomStatusChange(room.campusId, room.id, "Maintenance")}
+                              >
+                                Maintenance
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* Classrooms Inventory Table View */}
-        <TabsContent value="classrooms">
-          <Card>
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-base">Rooms & Computing Laboratories</CardTitle>
-              <CardDescription className="text-xs">
-                Comprehensive inventory of amphitheatres, GPU machine learning labs, and lecture spaces.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y border-t">
-                {filteredClassrooms.map((room) => (
-                  <div
-                    key={room.id}
-                    className="flex flex-col gap-3 p-4 text-xs sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/40 font-bold font-mono text-xs">
-                        {room.code.slice(0, 4)}
-                      </div>
-                      <div className="grid gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground text-sm">{room.name}</span>
-                          <Badge variant="outline" className="font-mono text-[10px]">
-                            {room.code}
-                          </Badge>
-                        </div>
-                        <span className="text-[11px] text-muted-foreground">
-                          {room.campusName} • {room.floor}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4 sm:justify-end">
-                      <div className="text-right">
-                        <div className="font-semibold text-foreground">{room.capacity} seats</div>
-                        <div className="text-[11px] text-muted-foreground">{room.type}</div>
-                      </div>
-
-                      <div className="flex max-w-[220px] flex-wrap gap-1">
-                        {room.equipment.slice(0, 2).map((eq) => (
-                          <Badge key={eq} variant="secondary" className="py-0 text-[10px]">
-                            {eq}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      <Badge variant="secondary" className={getStatusBadgeClass(room.status)}>
-                        {room.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
+          </>
+        )}
       </Tabs>
 
       {/* Modal */}

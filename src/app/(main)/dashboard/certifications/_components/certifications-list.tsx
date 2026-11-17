@@ -6,9 +6,12 @@ import {
   CheckCircle2,
   Download,
   GraduationCap,
+  Loader2,
   MoreHorizontal,
   Printer,
+  RefreshCw,
   Search,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -31,18 +34,76 @@ import { exportToCsv } from "@/lib/export-engine/export-csv";
 import { printHtmlDocument } from "@/lib/export-engine/print-document";
 import { generateDiplomaAttestationHtml } from "@/lib/export-engine/templates/diploma-attestation";
 
-import { type DiplomaItem, INITIAL_DIPLOMAS } from "./data";
+import { fetchDiplomas, type IssueDiplomaPayload, issueDiplomaApi, updateDiplomaStatusApi } from "./certifications.api";
+import type { DiplomaItem } from "./data";
 import { IssueDiplomaDialog } from "./issue-diploma-dialog";
 import { VerifyDiplomaDialog } from "./verify-diploma-dialog";
 
 export function CertificationsList() {
-  const [diplomas, setDiplomas] = React.useState<DiplomaItem[]>(INITIAL_DIPLOMAS);
+  const [diplomas, setDiplomas] = React.useState<DiplomaItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedDiploma, setSelectedDiploma] = React.useState<DiplomaItem | null>(null);
   const [verifyDialogOpen, setVerifyDialogOpen] = React.useState(false);
 
-  const handleIssueDiploma = (newDip: DiplomaItem) => {
-    setDiplomas([newDip, ...diplomas]);
+  const loadData = React.useCallback(async (showToast = false) => {
+    try {
+      const data = await fetchDiplomas();
+      setDiplomas(Array.isArray(data) ? data : []);
+      if (showToast) {
+        toast.success("Diplômes synchronisés", {
+          description: "Registres de diplômes et certifications chargés depuis le serveur NestJS.",
+        });
+      }
+    } catch (err) {
+      toast.error("Impossible de charger les diplômes", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadData(false);
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(true);
+  };
+
+  const handleIssueDiploma = async (payload: IssueDiplomaPayload): Promise<boolean> => {
+    try {
+      const created = await issueDiplomaApi(payload);
+      setDiplomas((prev) => [created, ...prev]);
+      toast.success("Diplôme délivré avec succès", {
+        description: `Diplôme officiel émis pour ${created.studentName}.`,
+      });
+      return true;
+    } catch (err) {
+      toast.error("Échec de délivrance du diplôme", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  };
+
+  const handleStatusChange = async (diplomaId: string, status: DiplomaItem["status"]) => {
+    try {
+      const updated = await updateDiplomaStatusApi(diplomaId, status);
+      setDiplomas((prev) => prev.map((d) => (d.id === diplomaId ? updated : d)));
+      toast.success("Statut du diplôme mis à jour", {
+        description: `Statut modifié avec succès en ${status}.`,
+      });
+    } catch (err) {
+      toast.error("Erreur de mise à jour du statut", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   const handleExportRegistry = () => {
@@ -111,7 +172,17 @@ export function CertificationsList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportRegistry}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            className="h-9 gap-2"
+          >
+            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm" className="h-9 gap-2" onClick={handleExportRegistry}>
             <Download className="size-4" />
             Export Registry
           </Button>
@@ -182,96 +253,123 @@ export function CertificationsList() {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="rounded-md border-t">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[240px]">Certificate / Recipient</TableHead>
-                  <TableHead>Conferred Degree Title</TableHead>
-                  <TableHead>Graduating Cohort</TableHead>
-                  <TableHead>Honors Conferred</TableHead>
-                  <TableHead className="w-[120px]">Status</TableHead>
-                  <TableHead className="w-[80px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDiplomas.length === 0 ? (
+          {isLoading ? (
+            <div className="flex h-48 flex-col items-center justify-center gap-3 border-t">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground text-xs">Loading diploma credentials ledger...</p>
+            </div>
+          ) : (
+            <div className="rounded-md border-t">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                      No diplomas found matching criteria.
-                    </TableCell>
+                    <TableHead className="w-[240px]">Certificate / Recipient</TableHead>
+                    <TableHead>Conferred Degree Title</TableHead>
+                    <TableHead>Graduating Cohort</TableHead>
+                    <TableHead>Honors Conferred</TableHead>
+                    <TableHead className="w-[120px]">Status</TableHead>
+                    <TableHead className="w-[80px] text-right">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredDiplomas.map((dip) => (
-                    <TableRow key={dip.id}>
-                      <TableCell>
-                        <div className="grid gap-0.5 text-xs">
-                          <span className="font-semibold text-foreground text-sm">{dip.studentName}</span>
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <span className="font-mono text-[11px]">{dip.certificateNumber}</span>
-                            <span>•</span>
-                            <span className="font-mono text-[11px]">{dip.studentMatricule}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <span className="font-medium text-foreground text-xs">{dip.degreeTitle}</span>
-                      </TableCell>
-
-                      <TableCell>
-                        <span className="text-muted-foreground text-xs">{dip.cohort}</span>
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className="border-purple-600/30 bg-purple-500/10 text-purple-600 text-xs dark:text-purple-400"
-                        >
-                          {dip.honors}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className="border-emerald-600/30 bg-emerald-500/10 text-emerald-600 text-xs dark:text-emerald-400"
-                        >
-                          {dip.status}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-8">
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedDiploma(dip);
-                                setVerifyDialogOpen(true);
-                              }}
-                            >
-                              Verify Proof & Hash
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handlePrintParchment(dip)}>
-                              <Printer className="mr-2 size-3.5" />
-                              Print Official Parchment (PDF)
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                  {filteredDiplomas.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                        No diplomas found matching criteria.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    filteredDiplomas.map((dip) => (
+                      <TableRow key={dip.id}>
+                        <TableCell>
+                          <div className="grid gap-0.5 text-xs">
+                            <span className="font-semibold text-foreground text-sm">{dip.studentName}</span>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <span className="font-mono text-[11px]">{dip.certificateNumber}</span>
+                              <span>•</span>
+                              <span className="font-mono text-[11px]">{dip.studentMatricule}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <span className="font-medium text-foreground text-xs">{dip.degreeTitle}</span>
+                        </TableCell>
+
+                        <TableCell>
+                          <span className="text-muted-foreground text-xs">{dip.cohort}</span>
+                        </TableCell>
+
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className="border-purple-600/30 bg-purple-500/10 text-purple-600 text-xs dark:text-purple-400"
+                          >
+                            {dip.honors}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              dip.status === "Issued"
+                                ? "border-emerald-600/30 bg-emerald-500/10 text-emerald-600 text-xs dark:text-emerald-400"
+                                : dip.status === "Revoked"
+                                  ? "border-destructive/30 bg-destructive/10 text-destructive text-xs"
+                                  : "border-amber-600/30 bg-amber-500/10 text-amber-600 text-xs dark:text-amber-400"
+                            }
+                          >
+                            {dip.status}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedDiploma(dip);
+                                  setVerifyDialogOpen(true);
+                                }}
+                              >
+                                Verify Proof & Hash
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePrintParchment(dip)}>
+                                <Printer className="mr-2 size-3.5" />
+                                Print Official Parchment (PDF)
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {dip.status === "Issued" ? (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => handleStatusChange(dip.id, "Revoked")}
+                                >
+                                  <ShieldAlert className="mr-2 size-3.5" />
+                                  Revoke Diploma
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleStatusChange(dip.id, "Issued")}>
+                                  <ShieldCheck className="mr-2 size-3.5" />
+                                  Re-validate as Issued
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

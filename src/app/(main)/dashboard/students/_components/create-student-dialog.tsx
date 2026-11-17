@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,57 +20,70 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { StudentItem } from "./data";
+import type { CreateStudentPayload } from "./students.api";
 
 interface CreateStudentDialogProps {
-  onStudentCreated?: (student: StudentItem) => void;
+  onStudentCreated?: (payload: CreateStudentPayload) => Promise<boolean>;
 }
 
 export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
-  const [matricule, setMatricule] = React.useState(`STU-2026-${Math.floor(100 + Math.random() * 900)}`);
+  const [matricule, setMatricule] = React.useState("");
   const [department, setDepartment] = React.useState("Computer Science");
   const [cohort, setCohort] = React.useState("Software Engineering 2026-A");
   const [guardianName, setGuardianName] = React.useState("");
   const [guardianEmail, setGuardianEmail] = React.useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (open && !matricule) {
+      setMatricule(`STU-2026-${Math.floor(100 + Math.random() * 900)}`);
+    }
+  }, [open, matricule]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) {
+    if (!name.trim() || !email.trim()) {
       toast.error("Please fill in the student full name and email.");
       return;
     }
 
-    const newStudent: StudentItem = {
-      id: `stu-${Date.now()}`,
+    const payload: CreateStudentPayload = {
       matricule,
-      name,
-      email,
-      phone: phone || "+33 6 00 00 00 00",
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim() || "+33 6 00 00 00 00",
       department,
       cohort,
       cohortId: "coh-001",
-      enrollmentDate: new Date().toISOString().split("T")[0],
-      attendanceRate: 100,
-      gradeAverage: 0,
-      creditsEarned: 0,
-      guardianName: guardianName || undefined,
-      guardianEmail: guardianEmail || undefined,
+      guardianName: guardianName.trim() || undefined,
+      guardianEmail: guardianEmail.trim() || undefined,
       status: "Active",
     };
 
-    onStudentCreated?.(newStudent);
-    toast.success("Student enrolled successfully", {
-      description: `${name} has been assigned student ID ${matricule} and linked to ${cohort}.`,
-    });
-    setOpen(false);
-    setName("");
-    setEmail("");
-    setPhone("");
-    setGuardianName("");
-    setGuardianEmail("");
+    setIsSaving(true);
+    try {
+      if (onStudentCreated) {
+        const success = await onStudentCreated(payload);
+        if (success) {
+          setOpen(false);
+          setName("");
+          setEmail("");
+          setPhone("");
+          setMatricule("");
+          setGuardianName("");
+          setGuardianEmail("");
+        }
+      } else {
+        setOpen(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -94,7 +107,13 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="stu-matricule">Matricule / Student ID *</Label>
-                <Input id="stu-matricule" value={matricule} onChange={(e) => setMatricule(e.target.value)} required />
+                <Input
+                  id="stu-matricule"
+                  value={matricule}
+                  onChange={(e) => setMatricule(e.target.value)}
+                  disabled={isSaving}
+                  required
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="stu-name">Full Name *</Label>
@@ -103,6 +122,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
                   placeholder="e.g. Alexandre Moreau"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  disabled={isSaving}
                   required
                 />
               </div>
@@ -117,6 +137,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
                   placeholder="student@onixe.edu"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSaving}
                   required
                 />
               </div>
@@ -127,6 +148,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
                   placeholder="+33 6 12 34 56 78"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  disabled={isSaving}
                 />
               </div>
             </div>
@@ -134,7 +156,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="stu-dept">Department</Label>
-                <Select value={department} onValueChange={setDepartment}>
+                <Select value={department} onValueChange={setDepartment} disabled={isSaving}>
                   <SelectTrigger id="stu-dept">
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
@@ -151,7 +173,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
 
               <div className="space-y-1.5">
                 <Label htmlFor="stu-cohort">Assigned Cohort</Label>
-                <Select value={cohort} onValueChange={setCohort}>
+                <Select value={cohort} onValueChange={setCohort} disabled={isSaving}>
                   <SelectTrigger id="stu-cohort">
                     <SelectValue placeholder="Select Cohort" />
                   </SelectTrigger>
@@ -180,6 +202,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
                     placeholder="e.g. Jean Moreau"
                     value={guardianName}
                     onChange={(e) => setGuardianName(e.target.value)}
+                    disabled={isSaving}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -190,6 +213,7 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
                     placeholder="parent@family.com"
                     value={guardianEmail}
                     onChange={(e) => setGuardianEmail(e.target.value)}
+                    disabled={isSaving}
                   />
                 </div>
               </div>
@@ -197,10 +221,13 @@ export function CreateStudentDialog({ onStudentCreated }: CreateStudentDialogPro
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Complete Enrollment</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Complete Enrollment
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

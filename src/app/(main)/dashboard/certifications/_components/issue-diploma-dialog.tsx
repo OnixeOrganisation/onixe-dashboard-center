@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Award, Plus } from "lucide-react";
+import { Award, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { IssueDiplomaPayload } from "./certifications.api";
 import type { DiplomaItem } from "./data";
 
 interface IssueDiplomaDialogProps {
-  onIssueDiploma: (diploma: DiplomaItem) => void;
+  onIssueDiploma: (payload: IssueDiplomaPayload) => Promise<boolean>;
 }
 
 const DEGREES = [
@@ -43,6 +44,8 @@ const COHORTS = [
 
 export function IssueDiplomaDialog({ onIssueDiploma }: IssueDiplomaDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const [studentName, setStudentName] = React.useState("");
   const [studentMatricule, setStudentMatricule] = React.useState("");
   const [degreeTitle, setDegreeTitle] = React.useState(DEGREES[0]);
@@ -50,7 +53,7 @@ export function IssueDiplomaDialog({ onIssueDiploma }: IssueDiplomaDialogProps) 
   const [honors, setHonors] = React.useState<DiplomaItem["honors"]>("Magna Cum Laude (Très Bien)");
   const [graduationDate, setGraduationDate] = React.useState("2024-11-20");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!studentName.trim()) {
@@ -58,31 +61,34 @@ export function IssueDiplomaDialog({ onIssueDiploma }: IssueDiplomaDialogProps) 
       return;
     }
 
-    const randomHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
-    const certNum = `ONIXE-DIP-2024-${Math.floor(1000 + Math.random() * 9000)}`;
-
-    const newDiploma: DiplomaItem = {
-      id: `dip-${Date.now()}`,
-      certificateNumber: certNum,
+    const payload: IssueDiplomaPayload = {
       studentName: studentName.trim(),
       studentMatricule: studentMatricule.trim() || `STU-2024-${Math.floor(100 + Math.random() * 900)}`,
       degreeTitle,
       cohort,
-      graduationDate,
       honors,
-      cryptoHash: randomHash,
-      verificationUrl: `https://verify.onixe.institute/cert/${randomHash}`,
-      status: "Issued",
+      graduationDate,
+      cumulativeGpa: 3.85,
     };
 
-    onIssueDiploma(newDiploma);
-    toast.success("Diploma Officially Delivered", {
-      description: `Official parchment ${newDiploma.certificateNumber} issued for ${newDiploma.studentName} with cryptographic seal.`,
-    });
-
-    setStudentName("");
-    setStudentMatricule("");
-    setOpen(false);
+    setIsSaving(true);
+    try {
+      const success = await onIssueDiploma(payload);
+      if (success) {
+        toast.success("Diploma Officially Delivered", {
+          description: `Official parchment issued for ${payload.studentName} with cryptographic seal.`,
+        });
+        setStudentName("");
+        setStudentMatricule("");
+        setOpen(false);
+      }
+    } catch {
+      toast.error("Error", {
+        description: "Failed to issue diploma. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -191,10 +197,13 @@ export function IssueDiplomaDialog({ onIssueDiploma }: IssueDiplomaDialogProps) 
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Deliver & Seal Diploma</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSaving ? "Issuing..." : "Deliver & Seal Diploma"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

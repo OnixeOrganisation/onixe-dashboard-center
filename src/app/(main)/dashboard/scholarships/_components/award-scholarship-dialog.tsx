@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Award, Plus } from "lucide-react";
+import { Award, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 
 import { SCHOLARSHIP_TYPES, type ScholarshipItem } from "./data";
+import type { AwardScholarshipPayload } from "./scholarships.api";
 
 interface AwardScholarshipDialogProps {
-  onAddScholarship: (scholarship: ScholarshipItem) => void;
+  onAddScholarship: (payload: AwardScholarshipPayload) => Promise<boolean>;
 }
 
 const COHORTS = [
@@ -36,6 +37,8 @@ const COHORTS = [
 
 export function AwardScholarshipDialog({ onAddScholarship }: AwardScholarshipDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const [studentName, setStudentName] = React.useState("");
   const [studentMatricule, setStudentMatricule] = React.useState("");
   const [cohort, setCohort] = React.useState(COHORTS[0]);
@@ -44,7 +47,7 @@ export function AwardScholarshipDialog({ onAddScholarship }: AwardScholarshipDia
   const [justification, setJustification] = React.useState("");
   const [approvedBy, setApprovedBy] = React.useState("Catherine Delorme (Campus Director)");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!studentName.trim()) {
@@ -52,10 +55,7 @@ export function AwardScholarshipDialog({ onAddScholarship }: AwardScholarshipDia
       return;
     }
 
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const newScholarship: ScholarshipItem = {
-      id: `sch-${Date.now()}`,
-      code: `SCH-2024-${randomNum}`,
+    const payload: AwardScholarshipPayload = {
       studentName: studentName.trim(),
       studentMatricule: studentMatricule.trim() || `STU-2024-${Math.floor(100 + Math.random() * 900)}`,
       cohort,
@@ -67,15 +67,25 @@ export function AwardScholarshipDialog({ onAddScholarship }: AwardScholarshipDia
       status: "Active",
     };
 
-    onAddScholarship(newScholarship);
-    toast.success("Scholarship Awarded", {
-      description: `${newScholarship.type} scholarship (${newScholarship.amount} EUR) granted to ${newScholarship.studentName}.`,
-    });
-
-    setStudentName("");
-    setStudentMatricule("");
-    setJustification("");
-    setOpen(false);
+    setIsSaving(true);
+    try {
+      const success = await onAddScholarship(payload);
+      if (success) {
+        toast.success("Scholarship Awarded", {
+          description: `${payload.type} scholarship (${payload.amount} EUR) granted to ${payload.studentName}.`,
+        });
+        setStudentName("");
+        setStudentMatricule("");
+        setJustification("");
+        setOpen(false);
+      }
+    } catch {
+      toast.error("Error", {
+        description: "Failed to award scholarship. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -177,10 +187,13 @@ export function AwardScholarshipDialog({ onAddScholarship }: AwardScholarshipDia
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Grant Scholarship</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSaving ? "Granting..." : "Grant Scholarship"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

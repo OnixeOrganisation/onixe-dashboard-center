@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { FilePlus, Plus } from "lucide-react";
+import { FilePlus, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { InvoiceItem } from "./data";
+import { financeApi } from "./finance.api";
 
 interface CreateInvoiceDialogProps {
   onAddInvoice: (inv: InvoiceItem) => void;
@@ -35,6 +36,7 @@ const COHORTS = [
 
 export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [studentName, setStudentName] = React.useState("");
   const [studentMatricule, setStudentMatricule] = React.useState("");
   const [cohort, setCohort] = React.useState(COHORTS[0]);
@@ -42,7 +44,7 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
   const [amount, setAmount] = React.useState("9500");
   const [dueDate, setDueDate] = React.useState("2024-12-31");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!studentName.trim()) {
@@ -50,29 +52,30 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
       return;
     }
 
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const newInv: InvoiceItem = {
-      id: `inv-${Date.now()}`,
-      number: `INV-2024-${randomNum}`,
-      studentName: studentName.trim(),
-      studentMatricule: studentMatricule.trim() || `STU-2024-${Math.floor(100 + Math.random() * 900)}`,
-      cohort,
-      sponsor: sponsor.trim() || "Personal Tuition",
-      amount: Number.parseFloat(amount) || 9000,
-      paidAmount: 0,
-      dueDate,
-      issueDate: new Date().toISOString().split("T")[0],
-      status: "Pending",
-    };
+    try {
+      setIsSubmitting(true);
+      const created = await financeApi.createInvoice({
+        studentName: studentName.trim(),
+        studentMatricule: studentMatricule.trim() || undefined,
+        cohort,
+        sponsor: sponsor.trim() || "Personal Tuition",
+        amount: Number.parseFloat(amount) || 9000,
+        dueDate,
+      });
 
-    onAddInvoice(newInv);
-    toast.success("Tuition Invoice Issued", {
-      description: `Invoice ${newInv.number} (${newInv.amount} EUR) generated for ${newInv.studentName}.`,
-    });
+      onAddInvoice(created);
+      toast.success("Tuition Invoice Issued", {
+        description: `Invoice ${created.number} (${created.amount} EUR) generated for ${created.studentName}.`,
+      });
 
-    setStudentName("");
-    setStudentMatricule("");
-    setOpen(false);
+      setStudentName("");
+      setStudentMatricule("");
+      setOpen(false);
+    } catch (err: any) {
+      toast.error("Failed to issue invoice", { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -98,20 +101,21 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="inv-name">Learner Full Name *</Label>
+                <Label htmlFor="inv-student">Student / Learner Name *</Label>
                 <Input
-                  id="inv-name"
+                  id="inv-student"
                   placeholder="e.g. Lucas Moreau"
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
                   required
                 />
               </div>
+
               <div className="space-y-1.5">
-                <Label htmlFor="inv-mat">Learner Matricule</Label>
+                <Label htmlFor="inv-mat">Student ID / Matricule</Label>
                 <Input
                   id="inv-mat"
-                  placeholder="STU-2024-001"
+                  placeholder="e.g. STU-2024-001"
                   value={studentMatricule}
                   onChange={(e) => setStudentMatricule(e.target.value)}
                 />
@@ -120,10 +124,10 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="inv-cohort">Cohort</Label>
+                <Label htmlFor="inv-cohort">Cohort / Class</Label>
                 <Select value={cohort} onValueChange={setCohort}>
                   <SelectTrigger id="inv-cohort">
-                    <SelectValue placeholder="Select Cohort" />
+                    <SelectValue placeholder="Cohort" />
                   </SelectTrigger>
                   <SelectContent>
                     {COHORTS.map((c) => (
@@ -136,10 +140,10 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="inv-sponsor">Funding Body / Sponsor</Label>
+                <Label htmlFor="inv-sponsor">Billing Entity / Sponsor</Label>
                 <Input
                   id="inv-sponsor"
-                  placeholder="OPCO Atlas, Enterprise, or Self-Funded"
+                  placeholder="OPCO Atlas, Self-Funded, etc."
                   value={sponsor}
                   onChange={(e) => setSponsor(e.target.value)}
                 />
@@ -148,13 +152,20 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="inv-amt">Invoice Amount (EUR) *</Label>
-                <Input id="inv-amt" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+                <Label htmlFor="inv-amount">Tuition Fee (EUR) *</Label>
+                <Input
+                  id="inv-amount"
+                  type="number"
+                  placeholder="9500"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="inv-due">Payment Due Date</Label>
-                <Input id="inv-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                <Label htmlFor="inv-due">Payment Due Date *</Label>
+                <Input id="inv-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
               </div>
             </div>
           </div>
@@ -163,7 +174,16 @@ export function CreateInvoiceDialog({ onAddInvoice }: CreateInvoiceDialogProps) 
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Issue Invoice</Button>
+            <Button type="submit" disabled={isSubmitting} className="gap-2">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Issuing...
+                </>
+              ) : (
+                "Issue Official Invoice"
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

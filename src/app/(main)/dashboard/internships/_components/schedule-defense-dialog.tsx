@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Calendar } from "lucide-react";
+import { Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,13 @@ interface ScheduleDefenseDialogProps {
   internship: InternshipItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdateDefense: (id: string, date: string, room: string) => void;
+  onUpdateDefense: (id: string, date: string, room: string) => Promise<boolean>;
 }
 
 export function ScheduleDefenseDialog({ internship, open, onOpenChange, onUpdateDefense }: ScheduleDefenseDialogProps) {
   const [defenseDate, setDefenseDate] = React.useState("2025-06-25");
   const [defenseRoom, setDefenseRoom] = React.useState("Alan Turing Amphitheatre");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (internship?.defenseDate) {
@@ -39,14 +40,25 @@ export function ScheduleDefenseDialog({ internship, open, onOpenChange, onUpdate
 
   if (!internship) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    onUpdateDefense(internship.id, defenseDate, defenseRoom);
-    toast.success("Defense Jury Scheduled", {
-      description: `PFE defense for ${internship.studentName} scheduled on ${defenseDate} in ${defenseRoom}.`,
-    });
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const success = await onUpdateDefense(internship.id, defenseDate, defenseRoom);
+      if (success) {
+        toast.success("Defense Jury Scheduled", {
+          description: `PFE defense for ${internship.studentName} scheduled on ${defenseDate} in ${defenseRoom}.`,
+        });
+        onOpenChange(false);
+      }
+    } catch {
+      toast.error("Error", {
+        description: "Failed to schedule defense. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -94,10 +106,13 @@ export function ScheduleDefenseDialog({ internship, open, onOpenChange, onUpdate
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Confirm Defense Schedule</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSaving ? "Scheduling..." : "Confirm Defense Schedule"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

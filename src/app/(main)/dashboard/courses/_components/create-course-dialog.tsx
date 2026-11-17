@@ -19,14 +19,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import type { CreateCoursePayload } from "./courses.api";
 import { COURSE_DEPARTMENTS, type CourseItem } from "./data";
 
 interface CreateCourseDialogProps {
-  onAddCourse: (course: CourseItem) => void;
+  onAddCourse: (payload: CreateCoursePayload) => Promise<boolean>;
 }
 
 export function CreateCourseDialog({ onAddCourse }: CreateCourseDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [code, setCode] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [department, setDepartment] = React.useState<string>(COURSE_DEPARTMENTS[0]);
@@ -35,16 +37,16 @@ export function CreateCourseDialog({ onAddCourse }: CreateCourseDialogProps) {
   const [totalHours, setTotalHours] = React.useState("40");
   const [semester, setSemester] = React.useState<CourseItem["semester"]>("Semester 1");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!code.trim() || !title.trim()) {
-      toast.error("Validation Error", { description: "Course code and title are required." });
+      toast.error("Erreur de validation", { description: "Le code et le titre du cours sont obligatoires." });
       return;
     }
 
-    const newCourse: CourseItem = {
-      id: `crs-${Date.now()}`,
+    setIsSubmitting(true);
+    const success = await onAddCourse({
       code: code.trim().toUpperCase(),
       title: title.trim(),
       department,
@@ -52,21 +54,14 @@ export function CreateCourseDialog({ onAddCourse }: CreateCourseDialogProps) {
       coefficient: Number.parseFloat(coefficient) || 1,
       totalHours: Number.parseInt(totalHours, 10) || 30,
       semester,
-      status: "Published",
-      modulesCount: 0,
-      assignedInstructorsCount: 0,
-      enrolledCohorts: [],
-      modules: [],
-    };
-
-    onAddCourse(newCourse);
-    toast.success("Course Created", {
-      description: `${newCourse.title} (${newCourse.code}) has been added to catalog.`,
     });
+    setIsSubmitting(false);
 
-    setCode("");
-    setTitle("");
-    setOpen(false);
+    if (success) {
+      setCode("");
+      setTitle("");
+      setOpen(false);
+    }
   };
 
   return (
@@ -181,10 +176,12 @@ export function CreateCourseDialog({ onAddCourse }: CreateCourseDialogProps) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Create Course</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Enregistrement..." : "Create Course"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Briefcase, Plus } from "lucide-react";
+import { Briefcase, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 
 import type { InternshipItem } from "./data";
+import type { CreateInternshipPayload } from "./internships.api";
 
 interface CreateInternshipDialogProps {
-  onAddInternship: (internship: InternshipItem) => void;
+  onAddInternship: (payload: CreateInternshipPayload) => Promise<boolean>;
 }
 
 const COHORTS = [
@@ -36,6 +37,8 @@ const COHORTS = [
 
 export function CreateInternshipDialog({ onAddInternship }: CreateInternshipDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const [studentName, setStudentName] = React.useState("");
   const [studentMatricule, setStudentMatricule] = React.useState("");
   const [cohort, setCohort] = React.useState(COHORTS[0]);
@@ -47,7 +50,7 @@ export function CreateInternshipDialog({ onAddInternship }: CreateInternshipDial
   const [startDate, setStartDate] = React.useState("2024-10-01");
   const [endDate, setEndDate] = React.useState("2025-09-30");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!studentName.trim() || !companyName.trim()) {
@@ -55,10 +58,7 @@ export function CreateInternshipDialog({ onAddInternship }: CreateInternshipDial
       return;
     }
 
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const newInternship: InternshipItem = {
-      id: `intern-${Date.now()}`,
-      code: `PFE-2024-${randomNum}`,
+    const payload: CreateInternshipPayload = {
       studentName: studentName.trim(),
       studentMatricule: studentMatricule.trim() || `STU-2024-${Math.floor(100 + Math.random() * 900)}`,
       cohort,
@@ -73,15 +73,25 @@ export function CreateInternshipDialog({ onAddInternship }: CreateInternshipDial
       status: "In Progress",
     };
 
-    onAddInternship(newInternship);
-    toast.success("Internship / Apprenticeship Registered", {
-      description: `Contract ${newInternship.code} recorded for ${newInternship.studentName} with ${newInternship.companyName}.`,
-    });
-
-    setStudentName("");
-    setCompanyName("");
-    setPfeTopic("");
-    setOpen(false);
+    setIsSaving(true);
+    try {
+      const success = await onAddInternship(payload);
+      if (success) {
+        toast.success("Internship / Apprenticeship Registered", {
+          description: `Contract recorded for ${payload.studentName} with ${payload.companyName}.`,
+        });
+        setStudentName("");
+        setCompanyName("");
+        setPfeTopic("");
+        setOpen(false);
+      }
+    } catch {
+      toast.error("Error", {
+        description: "Failed to register internship. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -205,10 +215,13 @@ export function CreateInternshipDialog({ onAddInternship }: CreateInternshipDial
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">Establish Contract</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSaving ? "Registering..." : "Establish Contract"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
