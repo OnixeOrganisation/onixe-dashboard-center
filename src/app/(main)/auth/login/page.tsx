@@ -37,9 +37,9 @@ export default function LoginPage() {
             </Link>
 
             <div className="space-y-1">
-              <h1 className="font-extrabold text-2xl text-foreground tracking-tight sm:text-3xl">Sign In to Center</h1>
+              <h1 className="font-extrabold text-2xl text-foreground tracking-tight sm:text-3xl">Connexion au Centre</h1>
               <p className="mx-auto max-w-sm text-muted-foreground text-xs leading-relaxed sm:text-sm">
-                Enter your administrative credentials to access your pedagogical campus and academy telemetry.
+                Authentification sécurisée par code à usage unique transmis sur votre adresse e-mail institutionnelle.
               </p>
             </div>
           </div>
