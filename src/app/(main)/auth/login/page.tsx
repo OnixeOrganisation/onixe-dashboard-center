@@ -10,14 +10,14 @@ export default function LoginPage() {
       {/* Left Cover Image */}
       <div className="relative hidden h-full lg:block lg:w-1/2 xl:w-7/12">
         <Image
-          src="/images/register-panel.jpg"
+          src="/images/login-cover.jpg"
           alt="Onixe Campus Center"
           fill
           priority
           sizes="(min-width: 1280px) 58vw, 50vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/20 to-slate-950/30 pointer-events-none" />
       </div>
 
       {/* Right Authentication Form Area */}
@@ -37,9 +37,9 @@ export default function LoginPage() {
             </Link>
 
             <div className="space-y-1">
-              <h1 className="font-extrabold text-2xl text-foreground tracking-tight sm:text-3xl">Connexion au Centre</h1>
+              <h1 className="font-extrabold text-2xl text-foreground tracking-tight sm:text-3xl">Sign in to Center</h1>
               <p className="mx-auto max-w-sm text-muted-foreground text-xs leading-relaxed sm:text-sm">
-                Authentification sécurisée par code à usage unique transmis sur votre adresse e-mail institutionnelle.
+                Secure single-use verification code sent to your institutional email address.
               </p>
             </div>
           </div>

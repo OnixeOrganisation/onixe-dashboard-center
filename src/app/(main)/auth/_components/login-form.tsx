@@ -53,8 +53,8 @@ export function LoginForm() {
 
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail || !trimmedEmail.includes("@")) {
-      toast.error("Format d'adresse invalide", {
-        description: "Veuillez renseigner une adresse e-mail institutionnelle valide.",
+      toast.error("Invalid email address", {
+        description: "Please enter a valid institutional email address.",
       });
       return;
     }
@@ -63,7 +63,7 @@ export function LoginForm() {
     try {
       const res = await sendLoginOtpApi({
         email: trimmedEmail,
-        lang: "fr",
+        lang: "en",
       });
 
       if (remember) {
@@ -80,12 +80,12 @@ export function LoginForm() {
       setStep("otp");
       setOtpCode("");
 
-      toast.success("Code de sécurité envoyé", {
-        description: `Un code à 6 chiffres a été transmis à ${trimmedEmail}.`,
+      toast.success("Security code sent", {
+        description: `A 6-digit verification code has been dispatched to ${trimmedEmail}.`,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      toast.error("Échec de l'envoi du code", {
+      toast.error("Failed to send security code", {
         description: message,
       });
     } finally {
@@ -100,18 +100,18 @@ export function LoginForm() {
     try {
       const res = await sendLoginOtpApi({
         email: email.trim().toLowerCase(),
-        lang: "fr",
+        lang: "en",
       });
       if (res.devCode) {
         setDevCode(res.devCode);
       }
       setCooldown(res.cooldownSeconds || 60);
-      toast.success("Nouveau code transmis", {
-        description: `Un nouveau code à 6 chiffres a été envoyé à ${email}.`,
+      toast.success("New code sent", {
+        description: `A new 6-digit code has been sent to ${email}.`,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      toast.error("Impossible de renvoyer le code", {
+      toast.error("Unable to resend code", {
         description: message,
       });
     } finally {
@@ -122,8 +122,8 @@ export function LoginForm() {
   const handleVerifyOtp = async (codeToVerify?: string) => {
     const finalCode = (codeToVerify || otpCode).trim();
     if (finalCode.length !== 6) {
-      toast.error("Code incomplet", {
-        description: "Veuillez saisir l'intégralité des 6 chiffres reçus par e-mail.",
+      toast.error("Incomplete code", {
+        description: "Please enter all 6 digits received by email.",
       });
       return;
     }
@@ -133,7 +133,7 @@ export function LoginForm() {
       const res = await verifyLoginOtpApi({
         email: email.trim().toLowerCase(),
         code: finalCode,
-        lang: "fr",
+        lang: "en",
       });
 
       try {
@@ -143,14 +143,14 @@ export function LoginForm() {
         // Continue even if storage fails
       }
 
-      toast.success("Authentification réussie", {
-        description: `Bienvenue ${res.user.name}. Accès au centre en cours...`,
+      toast.success("Authentication successful", {
+        description: `Welcome ${res.user.name}. Accessing center workspace...`,
       });
 
       router.push("/dashboard/academy");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      toast.error("Code invalide ou expiré", {
+      toast.error("Invalid or expired code", {
         description: message,
       });
       setOtpCode("");
@@ -173,11 +173,11 @@ export function LoginForm() {
             </Avatar>
             <div className="flex flex-col text-left">
               <span className="font-semibold text-foreground text-sm">{userProfile.name}</span>
-              <span className="text-muted-foreground text-xs">{userProfile.role || "Centre & Académie"}</span>
+              <span className="text-muted-foreground text-xs">{userProfile.role || "Center & Academy"}</span>
             </div>
             <div className="ml-auto flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
               <ShieldCheck className="size-3.5" />
-              <span>Vérifié</span>
+              <span>Verified</span>
             </div>
           </div>
         )}
@@ -186,10 +186,10 @@ export function LoginForm() {
           <div className="space-y-1">
             <div className="flex items-center justify-center gap-2 text-foreground font-semibold text-sm">
               <KeyRound className="size-4 text-primary" />
-              <span>Saisir le code de sécurité</span>
+              <span>Enter Security Code</span>
             </div>
             <p className="text-muted-foreground text-xs">
-              Vérifiez votre boîte de réception à <strong className="text-foreground">{email}</strong>
+              Check your inbox at <strong className="text-foreground">{email}</strong>
             </p>
           </div>
 
@@ -220,7 +220,7 @@ export function LoginForm() {
           {/* Test Code Helper for Local Dev */}
           {devCode && (
             <div className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-primary/40 bg-primary/5 px-3 py-1 text-[11px] text-muted-foreground">
-              <span>Code de démonstration généré :</span>
+              <span>Demo code generated:</span>
               <strong className="font-mono text-primary font-bold">{devCode}</strong>
             </div>
           )}
@@ -233,7 +233,7 @@ export function LoginForm() {
             onClick={() => handleVerifyOtp()}
           >
             {isLoading ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-            Confirmer et se connecter
+            Confirm and Sign In
           </Button>
 
           {/* Actions & Resend */}
@@ -247,11 +247,11 @@ export function LoginForm() {
               className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="size-3" />
-              Modifier l&apos;adresse
+              Change email address
             </button>
 
             {cooldown > 0 ? (
-              <span className="text-muted-foreground text-[11px]">Renvoyer dans {cooldown}s</span>
+              <span className="text-muted-foreground text-[11px]">Resend in {cooldown}s</span>
             ) : (
               <button
                 type="button"
@@ -260,7 +260,7 @@ export function LoginForm() {
                 className="flex items-center gap-1 text-primary hover:underline font-medium"
               >
                 <RefreshCw className={`size-3 ${isResending ? "animate-spin" : ""}`} />
-                Renvoyer le code
+                Resend code
               </button>
             )}
           </div>
@@ -273,7 +273,7 @@ export function LoginForm() {
     <form noValidate onSubmit={handleSendOtp} className="flex flex-col gap-4">
       <FieldGroup className="gap-4">
         <Field className="gap-1.5">
-          <FieldLabel htmlFor="login-email">Adresse e-mail institutionnelle</FieldLabel>
+          <FieldLabel htmlFor="login-email">Institutional email address</FieldLabel>
           <div className="relative">
             <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
@@ -299,7 +299,7 @@ export function LoginForm() {
           />
           <FieldContent>
             <FieldLabel htmlFor="login-remember" className="font-normal text-xs text-muted-foreground">
-              Mémoriser mon adresse e-mail sur ce terminal
+              Remember my email address on this device
             </FieldLabel>
           </FieldContent>
         </Field>
@@ -307,7 +307,7 @@ export function LoginForm() {
 
       <Button className="w-full gap-2" type="submit" disabled={isLoading}>
         {isLoading ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
-        Envoyer le code de sécurité
+        Send Security Code
       </Button>
     </form>
   );
