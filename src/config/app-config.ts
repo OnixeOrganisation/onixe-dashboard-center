@@ -3,9 +3,9 @@ import packageJson from "../../package.json";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "Onixe",
+  name: "Onixe Centre",
   version: packageJson.version,
-  copyright: `© ${currentYear}, Onixe.`,
+  copyright: `© ${currentYear}, Onixe Centre.`,
   meta: {
     title: "Onixe Centre - Système d'Exploitation Pédagogique",
     description:

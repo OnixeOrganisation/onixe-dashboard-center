@@ -4,6 +4,7 @@ export interface ExamItem {
   title: string;
   course: string;
   cohort: string;
+  cohortId?: string;
   date: string;
   time: string;
   durationMinutes: number;

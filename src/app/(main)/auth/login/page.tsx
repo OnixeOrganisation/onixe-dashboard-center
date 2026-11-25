@@ -1,66 +1,89 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { Globe } from "lucide-react";
+
+import { APP_CONFIG } from "@/config/app-config";
+
 import { LoginForm } from "../_components/login-form";
 import { GoogleButton } from "../_components/social-auth/google-button";
 
 export default function LoginPage() {
   return (
-    <div className="flex h-dvh max-h-dvh w-full overflow-hidden bg-background">
-      {/* Left Cover Image */}
-      <div className="relative hidden h-full lg:block lg:w-1/2 xl:w-7/12">
-        <Image
-          src="/images/login-cover.jpg"
-          alt="Onixe Campus Center"
-          fill
-          priority
-          sizes="(min-width: 1280px) 58vw, 50vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/20 to-slate-950/30 pointer-events-none" />
-      </div>
+    <main>
+      <div className="grid h-dvh justify-center p-2 lg:grid-cols-2">
+        {/* Colonne Visuelle (Droite sur Desktop) */}
+        <div className="relative order-2 hidden h-full overflow-hidden rounded-3xl bg-muted lg:flex">
+          <Image
+            src="/images/login-cover.jpg"
+            alt="Campus Onixe Centre"
+            fill
+            priority
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-slate-950/35" />
 
-      {/* Right Authentication Form Area */}
-      <div className="flex h-full w-full flex-col items-center justify-center overflow-y-auto p-6 sm:p-8 lg:w-1/2 xl:w-5/12">
-        <div className="w-full max-w-md space-y-6">
-          {/* Header & Prominent Onixe Logo */}
-          <div className="flex flex-col items-center space-y-3 text-center">
-            <Link href="/auth/login" className="transition-transform duration-200 hover:scale-105">
-              <Image
-                src="/images/logo-long.png"
-                alt="Onixe Logo"
-                width={260}
-                height={88}
-                className="h-12 sm:h-14 w-auto object-contain dark:brightness-110 drop-shadow-sm"
-                priority
-              />
-            </Link>
-
-            <div className="space-y-1">
-              <h1 className="font-extrabold text-2xl text-foreground tracking-tight sm:text-3xl">Sign in to Center</h1>
-              <p className="mx-auto max-w-sm text-muted-foreground text-xs leading-relaxed sm:text-sm">
-                Secure single-use verification code sent to your institutional email address.
-              </p>
-            </div>
+          <div className="absolute top-10 left-10 flex flex-col gap-1.5 text-white">
+            <Image
+              src="/images/logo-long.png"
+              alt="Logo Onixe"
+              width={200}
+              height={68}
+              className="h-10 w-auto object-contain object-left"
+              priority
+            />
+            <p className="text-white/80 text-xs">Espace Centre de Formation &amp; Administration</p>
           </div>
 
-          {/* Form and Google Auth */}
-          <div className="space-y-3.5">
-            <LoginForm />
-            <div className="relative text-center text-xs after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
-              <span className="relative z-10 bg-background px-2 text-muted-foreground">Or continue with</span>
-            </div>
-            <GoogleButton className="w-full" variant="outline" />
-
-            <p className="pt-1 text-center text-muted-foreground text-xs">
-              Need access for your institution?{" "}
-              <Link prefetch={false} href="/auth/register" className="font-semibold text-primary hover:underline">
-                Register Center
-              </Link>
+          <div className="absolute right-10 bottom-10 left-10 space-y-2 text-white">
+            <h2 className="font-semibold text-2xl leading-snug">
+              Pilotez votre établissement, vos cohortes et la performance pédagogique.
+            </h2>
+            <p className="text-sm text-white/80">
+              Centralisez la gestion des apprenants, formateurs, emplois du temps, évaluations et certifications depuis
+              un cockpit unique.
             </p>
           </div>
         </div>
+
+        {/* Colonne Formulaire (Gauche sur Desktop) */}
+        <div className="relative order-1 flex h-full">
+          <div className="mx-auto flex w-full flex-col justify-center space-y-6 px-4 sm:w-[370px] sm:px-0">
+            <div className="space-y-2 text-center">
+              <h1 className="font-medium text-3xl text-foreground tracking-tight">Connexion Centre</h1>
+              <p className="mx-auto max-w-sm text-muted-foreground text-sm">
+                Recevez un code de vérification unique sur votre adresse e-mail institutionnelle.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <GoogleButton className="w-full" variant="outline" />
+              <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
+                <span className="relative z-10 bg-background px-2 text-muted-foreground">Ou continuer avec</span>
+              </div>
+              <LoginForm />
+            </div>
+          </div>
+
+          <div className="absolute top-5 flex w-full justify-end px-10">
+            <div className="text-muted-foreground text-sm">
+              Pas encore de compte ?{" "}
+              <Link prefetch={false} className="text-foreground hover:underline" href="/auth/register">
+                Créer un compte
+              </Link>
+            </div>
+          </div>
+
+          <div className="absolute bottom-5 flex w-full justify-between px-10">
+            <div className="text-sm">{APP_CONFIG.copyright}</div>
+            <div className="flex items-center gap-1 text-sm">
+              <Globe className="size-4 text-muted-foreground" />
+              FR
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

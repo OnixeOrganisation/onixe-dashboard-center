@@ -5,6 +5,7 @@ export interface AttendanceSessionItem {
   slot: string;
   course: string;
   cohort: string;
+  cohortId?: string;
   instructor: string;
   room: string;
   totalEnrolled: number;

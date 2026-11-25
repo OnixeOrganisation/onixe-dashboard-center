@@ -1,4 +1,10 @@
-export type StudentStatus = "Active" | "Pending Registration" | "On Leave" | "Suspended" | "Graduated";
+export type StudentStatus =
+  | "Active"
+  | "Pending Registration"
+  | "Pending Invitation"
+  | "On Leave"
+  | "Suspended"
+  | "Graduated";
 
 export interface StudentItem {
   id: string;
@@ -17,6 +23,8 @@ export interface StudentItem {
   guardianEmail?: string;
   avatar?: string;
   status: StudentStatus;
+  inviteToken?: string;
+  inviteLink?: string;
 }
 
 export const mockStudents: StudentItem[] = [
