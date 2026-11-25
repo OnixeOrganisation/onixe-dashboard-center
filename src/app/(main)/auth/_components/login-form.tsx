@@ -4,345 +4,297 @@ import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Mail, RefreshCw, ShieldCheck } from "lucide-react";
-import { Controller, useForm } from "react-hook-form";
+import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { z } from "zod";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
-const credentialsSchema = z.object({
-  email: z.email({ message: "Veuillez saisir une adresse e-mail valide." }),
-  password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères." }),
-  remember: z.boolean().optional(),
-});
-
-type CredentialsFormValues = z.infer<typeof credentialsSchema>;
+import { type SendLoginOtpData, sendLoginOtpApi, verifyLoginOtpApi } from "./auth.api";
 
 export function LoginForm() {
   const router = useRouter();
-  const [step, setStep] = React.useState<"credentials" | "2fa">("credentials");
+
+  const [step, setStep] = React.useState<"email" | "otp">("email");
+  const [email, setEmail] = React.useState("");
+  const [remember, setRemember] = React.useState(true);
+  const [otpCode, setOtpCode] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
-  const [challengeId, setChallengeId] = React.useState<string | null>(null);
-  const [authEmail, setAuthEmail] = React.useState<string>("");
-  const [otpCode, setOtpCode] = React.useState<string>("");
-  const [cooldown, setCooldown] = React.useState<number>(0);
+  const [isResending, setIsResending] = React.useState(false);
+  const [cooldown, setCooldown] = React.useState(0);
+  const [userProfile, setUserProfile] = React.useState<SendLoginOtpData["user"] | null>(null);
 
-  const form = useForm<CredentialsFormValues>({
-    resolver: zodResolver(credentialsSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      remember: false,
-    },
-  });
+  // Restore remembered email on mount
+  React.useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem("onixe_remembered_email");
+      if (savedEmail) {
+        setEmail(savedEmail);
+      }
+    } catch {
+      // Ignored if localStorage is unavailable
+    }
+  }, []);
 
-  // Cooldown countdown timer
+  // Cooldown timer countdown
   React.useEffect(() => {
     if (cooldown <= 0) return;
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [cooldown]);
 
-  // Step 1: Submit Credentials
-  async function onCredentialsSubmit(data: CredentialsFormValues) {
-    setIsLoading(true);
-    setAuthEmail(data.email);
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_CENTRE_API_URL || "http://localhost:3003";
-      const res = await fetch(`${apiUrl}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          lang: "fr",
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Échec de l'authentification initiale.");
-      }
-
-      const resData = await res.json();
-      setChallengeId(resData.challengeId || `chal_${Date.now()}`);
-      setCooldown(resData.cooldownSeconds || 60);
-      setStep("2fa");
-
-      toast.success("Authentification à deux facteurs requise", {
-        description: `Un code OTP à 6 chiffres a été expédié à ${data.email}.`,
-      });
-    } catch (_err: unknown) {
-      // Fallback in case backend is starting or offline
-      const mockChallenge = `chal_${Date.now()}`;
-      setChallengeId(mockChallenge);
-      setCooldown(60);
-      setStep("2fa");
-
-      toast.info("Mode Démo 2FA Activé", {
-        description: `Code OTP expédié à ${data.email} (ou saisissez 123456 pour tester).`,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  // Step 2: Verify 6-digit OTP
-  async function onVerifyOtp(e?: React.FormEvent) {
+  const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (otpCode.length < 6) {
-      toast.error("Veuillez saisir les 6 chiffres du code OTP.");
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      toast.error("Adresse e-mail invalide", {
+        description: "Veuillez saisir une adresse e-mail institutionnelle valide.",
+      });
       return;
     }
 
     setIsLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_CENTRE_API_URL || "http://localhost:3003";
-      const res = await fetch(`${apiUrl}/auth/verify-2fa`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          challengeId,
-          email: authEmail,
-          code: otpCode,
-          lang: "fr",
-        }),
+      const res = await sendLoginOtpApi({
+        email: trimmedEmail,
+        lang: "fr",
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        // If mock code 123456 in dev
-        if (otpCode === "123456" || otpCode.length === 6) {
-          // Dev bypass fallback
-        } else {
-          throw new Error(err.message || "Code OTP invalide.");
-        }
+      if (remember) {
+        localStorage.setItem("onixe_remembered_email", trimmedEmail);
+      } else {
+        localStorage.removeItem("onixe_remembered_email");
       }
 
-      // Store auth session
-      if (typeof window !== "undefined") {
-        localStorage.setItem("onixe_auth_token", `jwt_center_${Date.now()}`);
-        localStorage.setItem(
-          "onixe_user",
-          JSON.stringify({
-            email: authEmail,
-            role: "CENTER_DIRECTOR",
-            twoFactorVerified: true,
-          }),
-        );
-      }
+      setUserProfile(res.user || null);
+      setCooldown(res.cooldownSeconds || 60);
+      setStep("otp");
+      setOtpCode("");
 
-      toast.success("Connexion réussie", {
-        description: `Bienvenue sur le portail centre Onixe. Redirection...`,
+      toast.success("Code de sécurité envoyé", {
+        description: `Un code de vérification à 6 chiffres a été envoyé à ${trimmedEmail}.`,
       });
-
-      router.push("/dashboard/students");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Le code saisi est incorrect ou a expiré.";
-      toast.error("Erreur de validation", {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error("Échec de l'envoi du code", {
         description: message,
       });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  // Resend OTP
-  async function onResendOtp() {
-    if (cooldown > 0) return;
+  const handleResendOtp = async () => {
+    if (cooldown > 0 || isResending) return;
+
+    setIsResending(true);
+    try {
+      const res = await sendLoginOtpApi({
+        email: email.trim().toLowerCase(),
+        lang: "fr",
+      });
+      setCooldown(res.cooldownSeconds || 60);
+      toast.success("Nouveau code envoyé", {
+        description: `Un nouveau code à 6 chiffres a été envoyé à ${email}.`,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error("Impossible de renvoyer le code", {
+        description: message,
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleVerifyOtp = async (codeToVerify?: string) => {
+    const finalCode = (codeToVerify || otpCode).trim();
+    if (finalCode.length !== 6) {
+      toast.error("Code incomplet", {
+        description: "Veuillez saisir les 6 chiffres reçus par e-mail.",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_CENTRE_API_URL || "http://localhost:3003";
-      const res = await fetch(`${apiUrl}/auth/resend-2fa`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          challengeId,
-          email: authEmail,
-          lang: "fr",
-        }),
+      const res = await verifyLoginOtpApi({
+        email: email.trim().toLowerCase(),
+        code: finalCode,
+        lang: "fr",
       });
 
-      if (res.ok) {
-        setCooldown(60);
-        toast.success("Nouveau code envoyé", {
-          description: `Un nouveau code OTP a été envoyé à ${authEmail}.`,
-        });
-      } else {
-        setCooldown(60);
-        toast.info("Nouveau code généré", {
-          description: "Vérifiez vos e-mails.",
-        });
+      try {
+        localStorage.setItem("onixe_auth_token", res.token);
+        localStorage.setItem("onixe_auth_user", JSON.stringify(res.user));
+      } catch {
+        // Continue even if storage fails
       }
-    } catch {
-      setCooldown(60);
-      toast.info("Nouveau code envoyé (mode démo)");
+
+      toast.success("Authentification réussie", {
+        description: `Bienvenue ${res.user.name}. Accès à l'espace centre...`,
+      });
+
+      router.push("/dashboard/academy");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error("Code invalide ou expiré", {
+        description: message,
+      });
+      setOtpCode("");
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  // STEP 2: 2FA Screen
-  if (step === "2fa") {
+  if (step === "otp") {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col items-center space-y-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <ShieldCheck className="h-6 w-6" />
+      <div className="flex flex-col gap-4">
+        {/* Badge utilisateur identifié */}
+        {userProfile && (
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+            <Avatar className="size-10 rounded-md">
+              <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
+              <AvatarFallback className="rounded-md font-semibold text-xs">
+                {(userProfile.name || "U").slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col text-left">
+              <span className="font-semibold text-foreground text-sm">{userProfile.name}</span>
+              <span className="text-muted-foreground text-xs">{userProfile.role || "Centre & Académie"}</span>
+            </div>
+            <div className="ml-auto flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              <ShieldCheck className="size-3.5" />
+              <span>Vérifié</span>
+            </div>
           </div>
-          <div>
-            <h2 className="font-bold text-foreground text-xl tracking-tight">Vérification en Deux Étapes (2FA)</h2>
-            <p className="mt-1 text-muted-foreground text-sm">
-              Un code temporaire à 6 chiffres a été envoyé par e-mail à{" "}
-              <strong className="text-foreground">{authEmail}</strong>.
+        )}
+
+        <div className="space-y-4 rounded-lg border bg-card p-4 text-center">
+          <div className="space-y-1">
+            <div className="flex items-center justify-center gap-2 font-semibold text-foreground text-sm">
+              <KeyRound className="size-4 text-primary" />
+              <span>Saisir le code de sécurité</span>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Consultez votre boîte de réception <strong className="text-foreground">{email}</strong>
             </p>
           </div>
-        </div>
 
-        <form onSubmit={onVerifyOtp} className="flex flex-col items-center gap-5">
-          <div className="flex flex-col items-center gap-2">
-            <InputOTP maxLength={6} value={otpCode} onChange={(value) => setOtpCode(value)} disabled={isLoading}>
-              <InputOTPGroup className="gap-2">
-                <InputOTPSlot index={0} className="h-12 w-11 border-muted-foreground/30 font-bold text-lg" />
-                <InputOTPSlot index={1} className="h-12 w-11 border-muted-foreground/30 font-bold text-lg" />
-                <InputOTPSlot index={2} className="h-12 w-11 border-muted-foreground/30 font-bold text-lg" />
-                <InputOTPSlot index={3} className="h-12 w-11 border-muted-foreground/30 font-bold text-lg" />
-                <InputOTPSlot index={4} className="h-12 w-11 border-muted-foreground/30 font-bold text-lg" />
-                <InputOTPSlot index={5} className="h-12 w-11 border-muted-foreground/30 font-bold text-lg" />
+          {/* Champ OTP à 6 chiffres */}
+          <div className="flex justify-center py-2">
+            <InputOTP
+              maxLength={6}
+              value={otpCode}
+              onChange={(value) => {
+                setOtpCode(value);
+                if (value.length === 6) {
+                  void handleVerifyOtp(value);
+                }
+              }}
+              disabled={isLoading}
+            >
+              <InputOTPGroup className="gap-1.5 sm:gap-2">
+                <InputOTPSlot index={0} className="size-10 rounded-md border font-bold text-base sm:size-11" />
+                <InputOTPSlot index={1} className="size-10 rounded-md border font-bold text-base sm:size-11" />
+                <InputOTPSlot index={2} className="size-10 rounded-md border font-bold text-base sm:size-11" />
+                <InputOTPSlot index={3} className="size-10 rounded-md border font-bold text-base sm:size-11" />
+                <InputOTPSlot index={4} className="size-10 rounded-md border font-bold text-base sm:size-11" />
+                <InputOTPSlot index={5} className="size-10 rounded-md border font-bold text-base sm:size-11" />
               </InputOTPGroup>
             </InputOTP>
-            <p className="mt-2 flex items-center gap-1.5 text-muted-foreground text-xs">
-              <Mail className="h-3.5 w-3.5" /> Code valide pendant 10 minutes
-            </p>
           </div>
 
+          {/* Bouton de validation */}
           <Button
-            type="submit"
-            className="w-full bg-emerald-600 font-medium text-white hover:bg-emerald-700"
-            disabled={otpCode.length !== 6 || isLoading}
+            type="button"
+            className="w-full gap-2"
+            disabled={isLoading || otpCode.length !== 6}
+            onClick={() => handleVerifyOtp()}
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 animate-spin" /> Validation...
-              </span>
-            ) : (
-              "Valider et Accéder au Dashboard"
-            )}
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+            Confirmer et se connecter
           </Button>
 
-          <div className="flex w-full items-center justify-between pt-1 text-xs">
+          {/* Actions & Renvoi */}
+          <div className="flex items-center justify-between pt-1 text-xs">
             <button
               type="button"
               onClick={() => {
-                setStep("credentials");
+                setStep("email");
                 setOtpCode("");
               }}
               className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Changer d'e-mail
+              <ArrowLeft className="size-3" />
+              Changer d&apos;adresse e-mail
             </button>
 
-            <button
-              type="button"
-              onClick={onResendOtp}
-              disabled={cooldown > 0 || isLoading}
-              className="font-medium text-emerald-600 hover:underline disabled:text-muted-foreground disabled:no-underline"
-            >
-              {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : "Renvoyer le code"}
-            </button>
+            {cooldown > 0 ? (
+              <span className="text-[11px] text-muted-foreground">Renvoyer dans {cooldown}s</span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={isResending}
+                className="flex items-center gap-1 font-medium text-primary hover:underline"
+              >
+                <RefreshCw className={`size-3 ${isResending ? "animate-spin" : ""}`} />
+                Renvoyer le code
+              </button>
+            )}
           </div>
-        </form>
+        </div>
       </div>
     );
   }
 
-  // STEP 1: Credentials Screen
   return (
-    <form noValidate onSubmit={form.handleSubmit(onCredentialsSubmit)} className="flex flex-col gap-4">
+    <form noValidate onSubmit={handleSendOtp} className="flex flex-col gap-4">
       <FieldGroup className="gap-4">
-        <Controller
-          control={form.control}
-          name="email"
-          render={({ field, fieldState }) => (
-            <Field className="gap-1.5" data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="login-email">Adresse E-mail Institutionnelle</FieldLabel>
-              <Input
-                {...field}
-                id="login-email"
-                type="email"
-                placeholder="admin@centre-formation.com"
-                autoComplete="email"
-                aria-invalid={fieldState.invalid}
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="password"
-          render={({ field, fieldState }) => (
-            <Field className="gap-1.5" data-invalid={fieldState.invalid}>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="login-password">Mot de passe</FieldLabel>
-              </div>
-              <Input
-                {...field}
-                id="login-password"
-                type="password"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                aria-invalid={fieldState.invalid}
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="remember"
-          render={({ field, fieldState }) => (
-            <Field orientation="horizontal" data-invalid={fieldState.invalid}>
-              <Checkbox
-                id="login-remember"
-                name={field.name}
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                aria-invalid={fieldState.invalid}
-              />
-              <FieldContent>
-                <FieldLabel htmlFor="login-remember" className="font-normal text-muted-foreground text-xs">
-                  Se souvenir de cet appareil pendant 30 jours
-                </FieldLabel>
-                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-              </FieldContent>
-            </Field>
-          )}
-        />
+        <Field className="gap-1.5">
+          <FieldLabel htmlFor="login-email">Adresse e-mail institutionnelle</FieldLabel>
+          <div className="relative">
+            <Mail className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+            <Input
+              id="login-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@onixe.institute"
+              autoComplete="email"
+              disabled={isLoading}
+              className="pl-9"
+              required
+            />
+          </div>
+        </Field>
+
+        <Field orientation="horizontal">
+          <Checkbox
+            id="login-remember"
+            checked={remember}
+            onCheckedChange={(checked) => setRemember(Boolean(checked))}
+            disabled={isLoading}
+          />
+          <FieldContent>
+            <FieldLabel htmlFor="login-remember" className="font-normal text-muted-foreground text-xs">
+              Mémoriser mon adresse e-mail sur cet appareil
+            </FieldLabel>
+          </FieldContent>
+        </Field>
       </FieldGroup>
 
-      <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-emerald-700 text-xs dark:text-emerald-400">
-        <ShieldCheck className="h-4 w-4 shrink-0" />
-        <span>Protection 2FA par e-mail activée automatiquement sur ce compte.</span>
-      </div>
-
-      <Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700" type="submit" disabled={isLoading}>
-        {isLoading ? (
-          <span className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 animate-spin" /> Envoi du code 2FA...
-          </span>
-        ) : (
-          "Se Connecter (Étape 1/2)"
-        )}
+      <Button className="w-full gap-2" type="submit" disabled={isLoading}>
+        {isLoading ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+        Envoyer le code de sécurité
       </Button>
     </form>
   );
