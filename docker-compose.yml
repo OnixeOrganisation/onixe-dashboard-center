@@ -1,0 +1,12 @@
+services:
+  dashboard-center:
+    build: .
+    container_name: onixe-dashboard-center
+    restart: always
+    ports:
+      - "127.0.0.1:3010:3010"
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+      - NEXT_PUBLIC_API_CENTRE_URL=https://api-center.onixe.app
+      - NEXT_PUBLIC_DEFAULT_TENANT_ID=tenant_inphb

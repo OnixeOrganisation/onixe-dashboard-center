@@ -39,6 +39,7 @@ import { generateSchoolCertificateHtml } from "@/lib/export-engine/templates/sch
 
 import { CreateStudentDialog } from "./create-student-dialog";
 import type { StudentItem } from "./data";
+import { ImportStudentsDialog } from "./import-students-dialog";
 import { StudentDetailsDialog } from "./student-details-dialog";
 import { type CreateStudentPayload, createStudentApi, fetchStudents, updateStudentStatusApi } from "./students.api";
 
@@ -108,6 +109,10 @@ export function StudentsList() {
       });
       return false;
     }
+  };
+
+  const handleStudentsImported = (newStudents: StudentItem[]) => {
+    setStudents((prev) => [...newStudents, ...prev]);
   };
 
   const handleStatusChange = async (id: string, newStatus: StudentItem["status"]) => {
@@ -260,6 +265,7 @@ export function StudentsList() {
               <Download className="size-4" />
               Export CSV
             </Button>
+            <ImportStudentsDialog onStudentsImported={handleStudentsImported} />
             <CreateStudentDialog onStudentCreated={handleStudentCreated} />
           </div>
         </CardHeader>
