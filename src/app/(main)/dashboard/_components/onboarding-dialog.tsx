@@ -12,7 +12,6 @@ import {
   Monitor,
   Moon,
   Palette,
-  Sparkles,
   Sun,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -93,12 +92,14 @@ export function OnboardingDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-2xl gap-0 p-0 overflow-hidden border-border/80 shadow-2xl">
+      <DialogContent className="max-w-4xl gap-0 p-0 overflow-hidden border-border/80 shadow-2xl">
         {/* Top Header Banner */}
         <div className="relative bg-muted/40 p-6 border-b">
           <div className="flex items-center justify-between mb-3">
-            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary gap-1 px-2.5 py-0.5">
-              <Sparkles className="size-3.5" />
+            <Badge
+              variant="outline"
+              className="border-primary/30 bg-primary/10 text-primary gap-1.5 px-3 py-1 font-medium"
+            >
               <span>{t("onboarding.badge", "Configuration Initiale")}</span>
             </Badge>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
@@ -260,7 +261,7 @@ export function OnboardingDialog() {
                 <Label className="text-xs font-medium text-muted-foreground">
                   {t("onboarding.presetLabel", "Palette de couleurs de l'institution")}
                 </Label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   {THEME_PRESET_OPTIONS.map((preset) => {
                     const isSelected = themePreset === preset.value;
                     return (

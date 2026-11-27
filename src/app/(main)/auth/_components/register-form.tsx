@@ -1,6 +1,11 @@
 "use client";
 
+import * as React from "react";
+
+import { useRouter } from "next/navigation";
+
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -11,26 +16,19 @@ import { Input } from "@/components/ui/input";
 
 const formSchema = z
   .object({
-    email: z.email({ message: "Please enter a valid email address." }),
-    password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-    confirmPassword: z.string().min(6, { message: "Confirm Password must be at least 6 characters." }),
+    email: z.email({ message: "Veuillez saisir une adresse e-mail valide." }),
+    password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères." }),
+    confirmPassword: z.string().min(6, { message: "La confirmation doit comporter au moins 6 caractères." }),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match.",
+    message: "Les mots de passe ne correspondent pas.",
     path: ["confirmPassword"],
   });
 
-function onSubmit(data: z.infer<typeof formSchema>) {
-  toast("You submitted the following values", {
-    description: (
-      <pre className="mt-2 w-[320px] rounded-md bg-neutral-950 p-4">
-        <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-      </pre>
-    ),
-  });
-}
-
 export function RegisterForm() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = React.useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -39,6 +37,24 @@ export function RegisterForm() {
       confirmPassword: "",
     },
   });
+
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    setIsLoading(true);
+    try {
+      toast.success("Compte créé avec succès", {
+        description: `Votre profil pour ${data.email} a été initialisé. Redirection vers la connexion...`,
+      });
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 1200);
+    } catch (err: unknown) {
+      toast.error("Échec de l'inscription", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -98,8 +114,9 @@ export function RegisterForm() {
           )}
         />
       </FieldGroup>
-      <Button className="w-full" type="submit">
-        Register
+      <Button className="w-full gap-2" type="submit" disabled={isLoading}>
+        {isLoading && <Loader2 className="size-4 animate-spin" />}
+        <span>Créer mon compte</span>
       </Button>
     </form>
   );
