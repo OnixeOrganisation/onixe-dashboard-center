@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -15,8 +14,33 @@ import { PreferencesStoreProvider } from "@/stores/preferences/preferences-provi
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: APP_CONFIG.meta.title,
+  title: {
+    default: APP_CONFIG.name,
+    template: `%s | ${APP_CONFIG.name}`,
+  },
   description: APP_CONFIG.meta.description,
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/images/logo-court.png",
+  },
+  metadataBase: new URL("https://center.onixe.app"),
+  openGraph: {
+    title: APP_CONFIG.name,
+    description: APP_CONFIG.meta.description,
+    url: "https://center.onixe.app",
+    siteName: "Onixe Center",
+    images: [
+      {
+        url: "/images/logo-long.png",
+        width: 1200,
+        height: 630,
+        alt: "Onixe Center",
+      },
+    ],
+    locale: "fr_FR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
@@ -24,7 +48,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     PREFERENCE_DEFAULTS;
   return (
     <html
-      lang="en"
+      lang="fr"
       data-theme-mode={theme_mode}
       data-theme-preset={theme_preset}
       data-content-layout={content_layout}
@@ -45,8 +69,6 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
             </I18nProvider>
           </PreferencesStoreProvider>
         </TooltipProvider>
-        {/* Used for this project's hosted demo. Feel free to remove it; it is not required for template functionality. */}
-        <Analytics />
       </body>
     </html>
   );
