@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import {
+  Camera,
   Download,
   Eye,
   GraduationCap,
@@ -113,6 +114,13 @@ export function StudentsList() {
 
   const handleStudentsImported = (newStudents: StudentItem[]) => {
     setStudents((prev) => [...newStudents, ...prev]);
+  };
+
+  const handleStudentUpdated = (updatedStudent: StudentItem) => {
+    setStudents((prev) => prev.map((s) => (s.id === updatedStudent.id ? { ...s, ...updatedStudent } : s)));
+    if (selectedStudent?.id === updatedStudent.id) {
+      setSelectedStudent((prev) => (prev ? { ...prev, ...updatedStudent } : null));
+    }
   };
 
   const handleStatusChange = async (id: string, newStatus: StudentItem["status"]) => {
@@ -405,6 +413,10 @@ export function StudentsList() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Student Options</DropdownMenuLabel>
                               <DropdownMenuItem onClick={() => handleViewDetails(student)}>
+                                <Camera className="mr-2 size-3.5" />
+                                Modifier la photo
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewDetails(student)}>
                                 View Full Transcript
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handlePrintCertificate(student)}>
@@ -452,6 +464,7 @@ export function StudentsList() {
         onStatusChange={(id, status) => {
           void handleStatusChange(id, status);
         }}
+        onStudentUpdated={handleStudentUpdated}
       />
     </div>
   );

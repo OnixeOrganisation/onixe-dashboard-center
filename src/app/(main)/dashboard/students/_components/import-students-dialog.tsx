@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload, 
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +36,7 @@ interface ParsedStudentRow {
   cohort: string;
   guardianName?: string;
   guardianEmail?: string;
+  avatar?: string;
   isValid: boolean;
   validationError?: string;
 }
@@ -70,8 +72,9 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
     setParsedRows([]);
     setIsParsing(false);
     setIsSubmitting(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    const inputElement = fileInputRef.current;
+    if (inputElement !== null) {
+      inputElement.value = "";
     }
   };
 
@@ -94,6 +97,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
         Promotion: "Software Engineering 2026-A",
         NomTuteur: "Paul Kouassi",
         EmailTuteur: "p.kouassi@family.com",
+        Photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
       },
       {
         Matricule: "STU-2026-102",
@@ -105,6 +109,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
         Promotion: "Cybersecurity & Cloud Defense",
         NomTuteur: "Fatou Toure",
         EmailTuteur: "f.toure@family.com",
+        Photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150",
       },
       {
         Matricule: "STU-2026-103",
@@ -116,6 +121,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
         Promotion: "Data Science & Applied AI",
         NomTuteur: "Michel Dupont",
         EmailTuteur: "m.dupont@family.com",
+        Photo: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150",
       },
     ];
 
@@ -147,7 +153,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
     const file = event.target.files?.[0];
     if (!file) return;
 
-    processFile(file);
+    void processFile(file);
   };
 
   const processFile = async (file: File) => {
@@ -208,6 +214,14 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
 
         const guardianEmail = rowMapped.emailtuteur || rowMapped.guardianemail || rowMapped.mailtuteur || undefined;
 
+        const avatar =
+          rowMapped.photo ||
+          rowMapped.avatar ||
+          rowMapped.image ||
+          rowMapped.photourl ||
+          rowMapped.urlphoto ||
+          undefined;
+
         let isValid = true;
         let validationError: string | undefined;
 
@@ -233,6 +247,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
           cohort,
           guardianName,
           guardianEmail,
+          avatar,
           isValid,
           validationError,
         };
@@ -261,7 +276,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      processFile(file);
+      void processFile(file);
     }
   };
 
@@ -287,6 +302,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
         cohort: r.cohort,
         guardianName: r.guardianName,
         guardianEmail: r.guardianEmail,
+        avatar: r.avatar,
         status: "Active",
       }));
 
@@ -316,7 +332,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl sm:max-w-5xl">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -350,7 +366,7 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className="flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/20 px-6 py-10 transition-colors hover:border-primary/50 hover:bg-muted/40"
+              className="flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-muted-foreground/25 border-dashed bg-muted/20 px-6 py-10 transition-colors hover:border-primary/50 hover:bg-muted/40"
             >
               <input
                 ref={fileInputRef}
@@ -367,7 +383,10 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
                   {t("students.dropzoneTitle", "Glissez votre fichier Excel ici, ou cliquez pour parcourir")}
                 </p>
                 <p className="mt-1 text-muted-foreground text-xs">
-                  {t("students.dropzoneSubtitle", "Formats acceptés : .xlsx, .xls, .csv (Max 10 Mo)")}
+                  {t(
+                    "students.dropzoneSubtitle",
+                    "Formats acceptés : .xlsx, .xls, .csv (Max 10 Mo) — Prise en charge des colonnes : Nom, Prénom, Email, Téléphone, Département, Promotion, Tuteur et Photo/Avatar.",
+                  )}
                 </p>
               </div>
             </button>
@@ -400,11 +419,12 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
               </div>
 
               {/* Data Preview Table */}
-              <ScrollArea className="h-64 rounded-md border">
+              <ScrollArea className="h-72 rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10">Statut</TableHead>
+                      <TableHead className="w-12">Photo</TableHead>
                       <TableHead>{t("students.tableMatricule", "Matricule")}</TableHead>
                       <TableHead>{t("students.tableName", "Nom complet")}</TableHead>
                       <TableHead>{t("students.tableEmail", "Email")}</TableHead>
@@ -423,6 +443,14 @@ export function ImportStudentsDialog({ onStudentsImported }: ImportStudentsDialo
                               <AlertCircle className="size-4 text-destructive" />
                             </span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Avatar className="size-8 border border-border/60">
+                            {row.avatar && <AvatarImage src={row.avatar} alt={row.name} />}
+                            <AvatarFallback className="font-semibold text-[10px]">
+                              {row.name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           {row.matricule || <span className="text-muted-foreground italic">Auto</span>}

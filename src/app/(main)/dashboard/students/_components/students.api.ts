@@ -45,6 +45,17 @@ export async function updateStudentStatusApi(studentId: string, status: StudentI
   return response.data;
 }
 
+export async function updateStudentApi(
+  studentId: string,
+  updates: Partial<CreateStudentPayload>,
+): Promise<StudentItem> {
+  const response = await apiClient<StudentItem>(`centre/students/${studentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+  return response.data;
+}
+
 export async function fetchStudentTranscriptApi(studentId: string): Promise<unknown> {
   const response = await apiClient<unknown>(`centre/students/${studentId}/transcript`);
   return response.data;

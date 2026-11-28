@@ -20,7 +20,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserAvatarPicker } from "@/components/ui/user-avatar-picker";
 
-import type { StudentItem } from "./data";
 import type { CreateStudentPayload } from "./students.api";
 
 interface CreateStudentDialogProps {

@@ -1,6 +1,8 @@
 "use client";
 
-import { Download, Mail, Phone, Printer } from "lucide-react";
+import * as React from "react";
+
+import { Camera, Download, Loader2, Mail, Phone, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,21 +17,60 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { UserAvatarPicker } from "@/components/ui/user-avatar-picker";
 import { printHtmlDocument } from "@/lib/export-engine/print-document";
 import { generateTranscriptHtml } from "@/lib/export-engine/templates/grade-transcript";
 import { generateSchoolCertificateHtml } from "@/lib/export-engine/templates/school-certificate";
 
 import type { StudentItem } from "./data";
+import { updateStudentApi } from "./students.api";
 
 interface StudentDetailsDialogProps {
   student: StudentItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChange?: (id: string, newStatus: StudentItem["status"]) => void;
+  onStudentUpdated?: (updatedStudent: StudentItem) => void;
 }
 
-export function StudentDetailsDialog({ student, open, onOpenChange, onStatusChange }: StudentDetailsDialogProps) {
+export function StudentDetailsDialog({
+  student,
+  open,
+  onOpenChange,
+  onStatusChange,
+  onStudentUpdated,
+}: StudentDetailsDialogProps) {
+  const [isEditingAvatar, setIsEditingAvatar] = React.useState(false);
+  const [currentAvatar, setCurrentAvatar] = React.useState(student?.avatar ?? "");
+  const [isSavingAvatar, setIsSavingAvatar] = React.useState(false);
+
+  React.useEffect(() => {
+    if (student) {
+      setCurrentAvatar(student.avatar ?? "");
+      setIsEditingAvatar(false);
+    }
+  }, [student]);
+
   if (!student) return null;
+
+  const handleAvatarChange = async (newUrl: string) => {
+    setCurrentAvatar(newUrl);
+    setIsSavingAvatar(true);
+    try {
+      const updated = await updateStudentApi(student.id, { avatar: newUrl });
+      onStudentUpdated?.(updated);
+      toast.success("Photo d'étudiant mise à jour", {
+        description: `La photo de profil de ${student.name} a été enregistrée avec succès.`,
+      });
+      setIsEditingAvatar(false);
+    } catch (err) {
+      toast.error("Impossible de mettre à jour la photo", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
 
   const handlePrintCertificate = () => {
     const html = generateSchoolCertificateHtml({
@@ -148,24 +189,67 @@ export function StudentDetailsDialog({ student, open, onOpenChange, onStatusChan
 
         <div className="space-y-4 py-2">
           {/* Header Profile Card */}
-          <div className="flex items-center gap-4 rounded-xl border bg-muted/20 p-4">
-            <Avatar className="size-14">
-              {student.avatar && <AvatarImage src={student.avatar} alt={student.name} />}
-              <AvatarFallback className="font-semibold text-base">
-                {student.name.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="grid flex-1 gap-1 text-xs">
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                <Mail className="size-3.5 text-muted-foreground" />
-                {student.email}
+          <div className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="group relative">
+                  <Avatar className="size-16 border-2 border-border/80 shadow-sm">
+                    {currentAvatar ? <AvatarImage src={currentAvatar} alt={student.name} /> : null}
+                    <AvatarFallback className="font-semibold text-base">
+                      {student.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingAvatar(!isEditingAvatar)}
+                    className="absolute -right-1 -bottom-1 flex size-6 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform hover:scale-110"
+                    title="Modifier la photo"
+                  >
+                    <Camera className="size-3.5" />
+                  </button>
+                </div>
+                <div className="grid flex-1 gap-1 text-xs">
+                  <div className="flex items-center gap-2 font-medium text-foreground">
+                    <Mail className="size-3.5 text-muted-foreground" />
+                    {student.email}
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="size-3.5" />
+                    {student.phone}
+                  </div>
+                  <div className="text-muted-foreground">Enrolled on: {student.enrollmentDate}</div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="size-3.5" />
-                {student.phone}
-              </div>
-              <div className="text-muted-foreground">Enrolled on: {student.enrollmentDate}</div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-2.5 text-xs"
+                onClick={() => setIsEditingAvatar(!isEditingAvatar)}
+              >
+                <Camera className="size-3.5" />
+                <span>{isEditingAvatar ? "Fermer" : "Changer la photo"}</span>
+              </Button>
             </div>
+
+            {isEditingAvatar && (
+              <div className="mt-1 space-y-2 rounded-lg border bg-background/80 p-3">
+                <UserAvatarPicker
+                  value={currentAvatar}
+                  onChange={handleAvatarChange}
+                  name={student.name}
+                  label="Sélectionner ou téléverser une photo d'identité"
+                  description="Glissez une image (PNG, JPG, WebP), parcourez vos fichiers ou collez une URL."
+                />
+                {isSavingAvatar && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                    <Loader2 className="size-3.5 animate-spin text-primary" />
+                    <span>Enregistrement de la photo en cours...</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Academic Metrics */}
